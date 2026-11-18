@@ -5,21 +5,17 @@ extension IdentifiableDatabaseObject {
     /// The object with the identifier.
     ///
     /// - Throws: `DatabaseError.notFound` when there is none.
-    public static func fetch(id: ID, in context: DatabaseContext<Schema>, prefetching relationships: [String] = []) throws -> Self {
-        let request = baseFetchRequest(matching: .id(id), limit: 1)
-        request.relationshipKeyPathsForPrefetching = relationships
-        guard let object = try context.fetch(request).first else {
+    public static func fetch(id: ID, in context: DatabaseContext<Schema>) throws -> Self {
+        guard let object = try first(matching: .id(id), in: context) else {
             throw DatabaseError.notFound(entity: entityName, id: String(describing: id))
         }
         return object
     }
 
     /// The objects with the identifiers, in no particular order.
-    public static func fetch(ids: [ID], in context: DatabaseContext<Schema>, prefetching relationships: [String] = []) throws -> [Self] {
+    public static func fetch(ids: [ID], in context: DatabaseContext<Schema>) throws -> [Self] {
         guard !ids.isEmpty else { return [] }
-        let request = baseFetchRequest(matching: .ids(ids))
-        request.relationshipKeyPathsForPrefetching = relationships
-        return try context.fetch(request)
+        return try fetch(matching: .ids(ids), in: context)
     }
 
     /// The object with the identifier, inserted with just that identifier when there is none.
