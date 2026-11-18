@@ -18,6 +18,10 @@ public protocol DatabaseObject: NSManagedObject {
     /// The typed sort descriptor of the entity: `.name`, `.createdAt.descending`.
     associatedtype Sort: EntitySort where Sort.Root == Self
 
+    /// The typed attribute values of the entity: `.name("x")`, `.order(3)`. `@Entity` generates
+    /// it; entities without it write values by key.
+    associatedtype Assignment: EntityAssignment = UntypedAssignment<Self> where Assignment.Root == Self
+
     /// Called after the object's values were rewritten in bulk (`update(with:)`), so that
     /// derived caches can be dropped. Does nothing by default.
     func didUpdate()

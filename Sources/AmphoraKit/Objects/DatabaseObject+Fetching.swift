@@ -127,6 +127,14 @@ extension DatabaseObject {
         didUpdate()
     }
 
+    /// Sets typed values, `[.order(3), .kind(.marker)]`, and calls `didUpdate()`.
+    public func update(with assignments: [Assignment]) {
+        for assignment in assignments {
+            setValue(assignment.storageValue, forKey: assignment.storageKey)
+        }
+        didUpdate()
+    }
+
     static func logged<T>(in context: DatabaseContext<Schema>, _ description: String, _ work: () throws -> T) -> T? {
         do {
             return try work()

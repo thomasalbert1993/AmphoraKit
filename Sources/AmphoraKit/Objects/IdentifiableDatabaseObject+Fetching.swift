@@ -39,6 +39,11 @@ extension IdentifiableDatabaseObject {
         try deleteAll(matching: .ids(ids), in: context)
     }
 
+    /// Sets typed values on the objects with the identifiers with a batch request.
+    public static func update(ids: [ID], set assignments: [Assignment], in context: DatabaseContext<Schema>) throws {
+        try update(ids: ids, Assignment.values(assignments), in: context)
+    }
+
     /// Sets attribute values on the objects with the identifiers with a batch request.
     public static func update(ids: [ID], _ values: [String: Any], in context: DatabaseContext<Schema>) throws {
         guard !ids.isEmpty else { return }

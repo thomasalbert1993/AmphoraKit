@@ -62,6 +62,8 @@ struct EntityModel {
     private(set) var properties: [Property] = []
     /// The nested types the class declares itself, which the macro doesn't generate again.
     private(set) var handWrittenTypes: Set<String> = []
+    /// The `@NSManaged` storage of the `@Attribute` / `@Relationship` declarations: name, type, access.
+    private(set) var managedDeclarations: [(name: String, type: String, access: String)] = []
 
     /// Members of `NSObject` / `NSManagedObject` / `DatabaseObject` a generated accessor would clash with.
     static let reservedInstanceNames: Set<String> = [
@@ -74,7 +76,7 @@ struct EntityModel {
     /// Class members of `NSObject` / `NSManagedObject` / `DatabaseObject` a generated field would clash with.
     static let reservedStaticNames: Set<String> = [
         "description", "debugDescription", "hash", "superclass", "entity", "fetchRequest",
-        "entityName", "idKey", "Query", "Sort", "Schema", "ID"
+        "entityName", "idKey", "Query", "Sort", "Assignment", "Schema", "ID"
     ]
 
     init(_ classDecl: ClassDeclSyntax, attribute: AttributeSyntax, context: some MacroExpansionContext) {
@@ -86,7 +88,8 @@ struct EntityModel {
         let relationshipPrefix = arguments.argument(labeled: "relationshipPrefix")?.stringLiteralValue ?? ""
         let generatesAccessors = arguments.argument(labeled: "generatesAccessors")?.as(BooleanLiteralExprSyntax.self)?.literal.tokenKind != .keyword(.false)
 
-        var storages: [(name: String, type: TypeSyntax, node: TypeSyntax, docCommentLines: [String])] = []
+        var storages: [(name: String, type: TypeSyntax, node: TypeSyntax, docCommentLines: [String], role: AttributeAnnotation.Role?)] = []
+        var declared: [AttributeAnnotation] = []
         var excluded: Set<String> = []
         var annotations: [String: StoredAnnotation] = [:]
         var instanceNames: Set<String> = []
@@ -111,11 +114,19 @@ struct EntityModel {
                     for binding in variable.bindings {
                         guard let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
                               let type = binding.typeAnnotation?.type else { continue }
-                        storages.append((name, type.trimmed, type, variable.docCommentLines))
+                        storages.append((name, type.trimmed, type, variable.docCommentLines, nil))
                         if isStorageOnly {
                             excluded.insert(name)
                         }
                     }
+                }
+                else if let attribute = variable.attributes.first(named: "Attribute"),
+                        let annotation = try? AttributeAnnotation(variable, attribute: attribute, role: .attribute) {
+                    declared.append(annotation)
+                }
+                else if let attribute = variable.attributes.first(named: "Relationship"),
+                        let annotation = try? AttributeAnnotation(variable, attribute: attribute, role: .relationship) {
+                    declared.append(annotation)
                 }
                 else if let stored = variable.attributes.first(named: "Stored"),
                         let annotation = try? StoredAnnotation(variable, attribute: stored) {
@@ -141,12 +152,24 @@ struct EntityModel {
             }
         }
 
+        // The storage `@Attribute` and `@Relationship` stand for: written here, read like `@NSManaged`.
+        for annotation in declared {
+            guard let name = annotation.storageName(attributePrefix: attributePrefix, relationshipPrefix: relationshipPrefix) else { continue }
+            let type = TypeSyntax(stringLiteral: annotation.storageType)
+            managedDeclarations.append((name, annotation.storageType, annotation.accessPrefix))
+            storages.append((name, type, annotation.exposedType, annotation.docCommentLines, annotation.role))
+            annotations[name] = StoredAnnotation(storageName: name, domainName: annotation.domainName, exposedType: annotation.exposedType, docCommentLines: annotation.docCommentLines)
+        }
+
         for storage in storages where !excluded.contains(storage.name) {
-            let isRelationship = !relationshipPrefix.isEmpty && storage.name.hasPrefix(relationshipPrefix)
-            let isAttribute = !attributePrefix.isEmpty && storage.name.hasPrefix(attributePrefix)
+            let isRelationship = storage.role.map { $0 == .relationship } ?? (!relationshipPrefix.isEmpty && storage.name.hasPrefix(relationshipPrefix))
+            let isAttribute = storage.role.map { $0 == .attribute } ?? (!attributePrefix.isEmpty && storage.name.hasPrefix(attributePrefix))
             let isUnprefixed = attributePrefix.isEmpty && relationshipPrefix.isEmpty
             let prefix: String
-            if isRelationship {
+            if storage.role != nil {
+                prefix = ""
+            }
+            else if isRelationship {
                 prefix = relationshipPrefix
             }
             else if isAttribute {
@@ -167,7 +190,7 @@ struct EntityModel {
 
             // A prefixed attribute is an attribute whatever its type (a transformable `Set<String>`);
             // without prefixes, a set of standard values is one too.
-            let canBeRelationship = isRelationship || (isUnprefixed && !(storage.type.setElementType?.isStandardValueType ?? false))
+            let canBeRelationship = isRelationship || (storage.role == nil && isUnprefixed && !(storage.type.setElementType?.isStandardValueType ?? false))
             if canBeRelationship, let element = storage.type.setElementType {
                 kind = .toMany(element: element.trimmedDescription)
             }
@@ -213,12 +236,17 @@ struct EntityModel {
     //-------------------
 
     func render() -> [DeclSyntax] {
-        var declarations: [DeclSyntax] = []
+        var declarations: [DeclSyntax] = managedDeclarations.map { storage in
+            DeclSyntax(stringLiteral: "@NSManaged \(storage.access)var \(storage.name): \(storage.type)")
+        }
         if !handWrittenTypes.contains("Query") {
             declarations.append(renderQuery())
         }
         if !handWrittenTypes.contains("Sort") {
             declarations.append(renderSort())
+        }
+        if !handWrittenTypes.contains("Assignment") {
+            declarations.append(renderAssignment())
         }
         for property in properties where property.generatesField {
             if let field = renderField(property) {
@@ -300,6 +328,34 @@ struct EntityModel {
             \(access)let expression: AmphoraKit.SortExpression<\(typeName)>
             \(access)init(_ expression: AmphoraKit.SortExpression<\(typeName)>) {
                 self.expression = expression
+            }
+        \(members)}
+        """)
+    }
+
+    private func renderAssignment() -> DeclSyntax {
+        var members = ""
+        for property in properties {
+            guard case .attribute(let exposedType) = property.kind,
+                  !["storageKey", "storageValue"].contains(property.domainName) else { continue }
+            let docLines = doc(property.docCommentLines, indent: "    ")
+            members += """
+            \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> Assignment {
+                    .init(storageKey: "\(property.storageName)", storageValue: AmphoraKit.StoredAccessor.write(value) as \(property.storageType))
+                }
+
+            """
+        }
+
+        return DeclSyntax(stringLiteral: """
+        /// The typed attribute values of `\(typeName)`, generated by `@Entity`.
+        \(access)struct Assignment: AmphoraKit.EntityAssignment {
+            \(access)typealias Root = \(typeName)
+            \(access)let storageKey: String
+            \(access)let storageValue: Any?
+            \(access)init(storageKey: String, storageValue: Any?) {
+                self.storageKey = storageKey
+                self.storageValue = storageValue
             }
         \(members)}
         """)

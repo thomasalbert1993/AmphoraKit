@@ -53,6 +53,18 @@ extension TypeSyntax {
         return nil
     }
 
+    /// `[X]` or `Array<X>` → `X`, otherwise `nil`.
+    var arrayElementType: TypeSyntax? {
+        if let array = self.as(ArrayTypeSyntax.self) {
+            return array.element
+        }
+        if let identifier = self.as(IdentifierTypeSyntax.self), identifier.name.text == "Array",
+           let argument = identifier.genericArgumentClause?.arguments.first {
+            return Syntax(argument.argument).as(TypeSyntax.self)
+        }
+        return nil
+    }
+
     /// `Set<X>` → `X`, otherwise `nil`.
     var setElementType: TypeSyntax? {
         guard let identifier = self.as(IdentifierTypeSyntax.self), identifier.name.text == "Set",
@@ -87,6 +99,15 @@ extension ExprSyntax {
             return nil
         }
         return property.declName.baseName.text
+    }
+
+    /// The type of a metatype argument: `Int32.self` → `Int32`, `String?.self` → `String?`.
+    var metatypeArgument: TypeSyntax? {
+        guard let member = self.as(MemberAccessExprSyntax.self), member.declName.baseName.tokenKind == .keyword(.self),
+              let base = member.base else {
+            return nil
+        }
+        return TypeSyntax(stringLiteral: base.trimmedDescription)
     }
 
     /// The text of a plain string literal.

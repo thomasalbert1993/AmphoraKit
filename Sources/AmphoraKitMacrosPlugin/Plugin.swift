@@ -6,6 +6,8 @@ struct AmphoraKitMacrosPlugin: CompilerPlugin {
     let providingMacros: [any Macro.Type] = [
         EntityMacro.self,
         StoredMacro.self,
-        StorageOnlyMacro.self
+        StorageOnlyMacro.self,
+        AttributeMacro.self,
+        RelationshipMacro.self
     ]
 }

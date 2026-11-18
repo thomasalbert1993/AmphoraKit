@@ -10,6 +10,9 @@ import CoreData
 ///   `.name("x")`), two per to-one relationship taking a nullability match or the target's query
 ///   (`.folder(.name("x"))`), one per to-many relationship taking a `CollectionMatch`;
 /// - `struct Sort: EntitySort` with one static per attribute;
+/// - `struct Assignment: EntityAssignment` with one static per attribute encoding the value to its
+///   stored form, for `insert`, `update(matching:set:)` and `update(with:)`: `[.order(3)]`;
+/// - the `@NSManaged` storage of every `@Attribute` / `@Relationship` declaration;
 /// - one static `Field` per attribute and to-one relationship, for the expression form of the
 ///   queries: `Note.score > 2 && Note.name == "x"`;
 /// - a read-only domain accessor for every prefixed storage property that has no `@Stored`
@@ -26,7 +29,7 @@ import CoreData
 ///   class body: turn it off when the accessors live in extensions, where a generated one would be
 ///   a redeclaration.
 ///
-@attached(member, names: named(Query), named(Sort), arbitrary)
+@attached(member, names: named(Query), named(Sort), named(Assignment), arbitrary)
 public macro Entity(attributePrefix: String = "", relationshipPrefix: String = "", generatesAccessors: Bool = true) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "EntityMacro")
 
 /// Leaves a storage property out of what `@Entity` generates: no query, no field, no sort, no accessor.
@@ -64,3 +67,46 @@ public macro Stored<Root, Value>(_ keyPath: KeyPath<Root, Value>, access: Stored
 @attached(accessor)
 public macro Stored<Root, Value, Exposed>(_ keyPath: KeyPath<Root, Value>, default: Exposed, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "StoredMacro")
 
+
+/// Declares an attribute in one line: `@Entity` on the class writes the `@NSManaged` storage, the
+/// property becomes its accessor.
+///
+/// ```swift
+/// @Attribute var name: String                                          // @NSManaged var a_name: String
+/// @Attribute("a_sortOrder", storeAs: Int32.self) var order: Int          // stored in another width
+/// @Attribute(storeAs: String.self, default: Kind.note) var kind: Kind    // RawRepresentable
+/// @Attribute(storeAs: String?.self) var start: BarBeatPosition?          // StorageConvertible
+/// @Attribute(access: .readWrite) var isPinned: Bool                      // with a setter
+/// ```
+///
+/// The storage name is the property name behind the `attributePrefix` of the enclosing `@Entity`,
+/// unless given. The storage stays `internal` (or the property's `public`/`package`): `#keyPath`
+/// and the key-value APIs need to reach it. `storeAs:` is for lossless, order-preserving
+/// encodings only — integer widths, raw values, `StorageConvertible` — so that the typed queries
+/// `@Entity` generates on the exposed type stay right; unit conversions stay hand-written.
+///
+@attached(accessor)
+public macro Attribute(_ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares an attribute stored in another type. See `Attribute(_:access:)`.
+@attached(accessor)
+public macro Attribute<Stored>(_ name: String? = nil, storeAs: Stored.Type, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares an attribute stored in another type, with a fallback when the stored value doesn't
+/// decode. See `Attribute(_:access:)`.
+@attached(accessor)
+public macro Attribute<Stored, Exposed>(_ name: String? = nil, storeAs: Stored.Type, default: Exposed, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares a relationship in one line: `@Entity` on the class writes the `@NSManaged` storage,
+/// the property becomes its zombie-safe accessor.
+///
+/// ```swift
+/// @Relationship var cue: Cue?            // @NSManaged var r_cue: Cue?, nil when it is a zombie
+/// @Relationship var notes: [Note]        // @NSManaged var r_notes: Set<Note>, zombies removed
+/// ```
+///
+/// The storage name is the property name behind the `relationshipPrefix` of the enclosing
+/// `@Entity`, unless given.
+///
+@attached(accessor)
+public macro Relationship(_ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "RelationshipMacro")

@@ -31,6 +31,16 @@ extension DatabaseObject {
         mergeBatchChanges(NSInsertedObjectsKey, objectIDs: result?.result as? [NSManagedObjectID], into: context)
     }
 
+    /// Inserts rows of typed values with a batch request: `[[.id("a"), .order(1)], [.id("b"), .order(2)]]`.
+    public static func insert(_ rows: [[Assignment]], in context: DatabaseContext<Schema>) throws {
+        try insert(rows.map(Assignment.values), in: context)
+    }
+
+    /// Sets typed values on every object matching the query with a batch request: `set: [.isPinned(true)]`.
+    public static func update(matching query: Query, set assignments: [Assignment], in context: DatabaseContext<Schema>) throws {
+        try update(matching: query, Assignment.values(assignments), in: context)
+    }
+
     /// Sets attribute values on every object matching the query with a batch request, and merges
     /// the updates into the context and the view context.
     public static func update(matching query: Query, _ values: [String: Any], in context: DatabaseContext<Schema>) throws {

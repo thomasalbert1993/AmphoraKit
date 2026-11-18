@@ -44,6 +44,16 @@ struct StoredAnnotation {
         }
     }
 
+    /// An annotation built from an `@Attribute` / `@Relationship` declaration.
+    init(storageName: String, domainName: String, exposedType: TypeSyntax, docCommentLines: [String]) {
+        self.storageName = storageName
+        self.domainName = domainName
+        self.exposedType = exposedType
+        self.defaultValue = nil
+        self.isReadWrite = false
+        self.docCommentLines = docCommentLines
+    }
+
     /// Parses a declaration carrying a `@Stored` attribute.
     init(_ declaration: some DeclSyntaxProtocol, attribute: AttributeSyntax) throws(Failure) {
         guard let variable = declaration.as(VariableDeclSyntax.self) else { throw .notAVariable }
