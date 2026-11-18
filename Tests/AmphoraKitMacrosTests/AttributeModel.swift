@@ -41,6 +41,7 @@ enum AttributeSchema: DatabaseSchema {
             attribute("a_status", .integer32AttributeType, defaultValue: 0),
             attribute("a_note", .stringAttributeType, optional: true),
             attribute("a_pinned", .booleanAttributeType, defaultValue: false),
+            attribute("a_lens", .stringAttributeType, defaultValue: ""),
             shotReel
         ]
         reel.properties = [
@@ -97,6 +98,14 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// The progress.
     @Attribute(storeAs: Int32.self, default: Status.none, access: .readWrite) var status: Status
+
+    /// A lens.
+    enum Lens: String, Sendable {
+        case prime, zoom
+    }
+
+    /// The lens, `nil` when the column holds none: no assignment, `nil` has no stored form there.
+    @Attribute(storeAs: String.self) var lens: Lens?
 
     /// A free note.
     @Attribute(access: .readWrite) var note: String?

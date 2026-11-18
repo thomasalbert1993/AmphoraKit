@@ -338,6 +338,11 @@ struct EntityModel {
         for property in properties {
             guard case .attribute(let exposedType) = property.kind,
                   !["storageKey", "storageValue"].contains(property.domainName) else { continue }
+            // An optional exposed over a non-optional column has no stored form for `nil`.
+            if TypeSyntax(stringLiteral: exposedType).optionalWrappedType != nil,
+               TypeSyntax(stringLiteral: property.storageType).optionalWrappedType == nil {
+                continue
+            }
             let docLines = doc(property.docCommentLines, indent: "    ")
             members += """
             \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> Assignment {
