@@ -68,28 +68,28 @@ extension DatabaseObject {
     //-------------------
 
     /// The objects matching every query, an empty array when the fetch fails (logged).
-    public static func fetchAll(matching queries: [Query] = [], sortedBy sorts: [Sort] = [], limit: Int? = nil, in context: DatabaseContext<Schema>) -> [Self] {
+    public static func fetchOrEmpty(matching queries: [Query] = [], sortedBy sorts: [Sort] = [], limit: Int? = nil, in context: DatabaseContext<Schema>) -> [Self] {
         logged(in: context, "fetch \(entityName)") { try fetch(matching: queries, sortedBy: sorts, limit: limit, in: context) } ?? []
     }
 
     /// The objects matching the query, an empty array when the fetch fails (logged).
-    public static func fetchAll(matching query: Query, sortedBy sorts: [Sort] = [], limit: Int? = nil, in context: DatabaseContext<Schema>) -> [Self] {
-        fetchAll(matching: [query], sortedBy: sorts, limit: limit, in: context)
+    public static func fetchOrEmpty(matching query: Query, sortedBy sorts: [Sort] = [], limit: Int? = nil, in context: DatabaseContext<Schema>) -> [Self] {
+        fetchOrEmpty(matching: [query], sortedBy: sorts, limit: limit, in: context)
     }
 
     /// The objects a request returns, an empty array when the fetch fails (logged).
-    public static func fetchAll(request: NSFetchRequest<Self>, in context: DatabaseContext<Schema>) -> [Self] {
+    public static func fetchOrEmpty(request: NSFetchRequest<Self>, in context: DatabaseContext<Schema>) -> [Self] {
         logged(in: context, "fetch \(entityName)") { try fetch(request: request, in: context) } ?? []
     }
 
     /// The first object matching every query, `nil` when there is none or the fetch fails (logged).
-    public static func fetchFirst(matching queries: [Query] = [], sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) -> Self? {
+    public static func fetchFirstOrNil(matching queries: [Query] = [], sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) -> Self? {
         logged(in: context, "fetch first \(entityName)") { try first(matching: queries, sortedBy: sorts, in: context) } ?? nil
     }
 
     /// The first object matching the query, `nil` when there is none or the fetch fails (logged).
-    public static func fetchFirst(matching query: Query, sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) -> Self? {
-        fetchFirst(matching: [query], sortedBy: sorts, in: context)
+    public static func fetchFirstOrNil(matching query: Query, sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) -> Self? {
+        fetchFirstOrNil(matching: [query], sortedBy: sorts, in: context)
     }
 
 
@@ -98,20 +98,20 @@ extension DatabaseObject {
     //-------------------
 
     /// The objects matching a raw predicate. The escape hatch of the typed queries.
-    public static func fetchAll(matching predicate: NSPredicate?, sortedBy sortDescriptors: [NSSortDescriptor] = [], in context: DatabaseContext<Schema>) -> [Self] {
+    public static func fetchOrEmpty(matching predicate: NSPredicate?, sortedBy sortDescriptors: [NSSortDescriptor] = [], in context: DatabaseContext<Schema>) -> [Self] {
         let request = NSFetchRequest<Self>(entityName: entityName)
         request.predicate = predicate
         request.sortDescriptors = sortDescriptors
-        return fetchAll(request: request, in: context)
+        return fetchOrEmpty(request: request, in: context)
     }
 
     /// The first object matching a raw predicate. The escape hatch of the typed queries.
-    public static func fetchFirst(matching predicate: NSPredicate?, sortedBy sortDescriptors: [NSSortDescriptor] = [], in context: DatabaseContext<Schema>) -> Self? {
+    public static func fetchFirstOrNil(matching predicate: NSPredicate?, sortedBy sortDescriptors: [NSSortDescriptor] = [], in context: DatabaseContext<Schema>) -> Self? {
         let request = NSFetchRequest<Self>(entityName: entityName)
         request.predicate = predicate
         request.sortDescriptors = sortDescriptors
         request.fetchLimit = 1
-        return fetchAll(request: request, in: context).first
+        return fetchOrEmpty(request: request, in: context).first
     }
 
 

@@ -3,8 +3,8 @@ import Foundation
 /// A condition on a to-many relationship.
 ///
 /// ```swift
-/// Folder.fetchAll(matching: .items(.any(.isDone(false))), in: context)
-/// Folder.fetchAll(matching: .items(.count(.greaterThan(3))), in: context)
+/// Folder.fetchOrEmpty(matching: .items(.any(.isDone(false))), in: context)
+/// Folder.fetchOrEmpty(matching: .items(.count(.greaterThan(3))), in: context)
 /// ```
 ///
 public struct CollectionMatch<Element: DatabaseObject> {

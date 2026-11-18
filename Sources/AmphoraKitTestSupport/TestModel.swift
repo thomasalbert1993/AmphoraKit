@@ -77,7 +77,7 @@ public enum TestSchema: DatabaseSchema {
 
 /// A test entity with plain attribute names and the default `id` key.
 ///
-/// Its nested `Query`, `Field` and `Sort` are written by hand, exactly as `@Entity` generates them.
+/// Its nested `Query` and `Sort` and its static fields are written by hand, exactly as `@Entity` generates them.
 @objc(AmphoraKitTestItem)
 public final class TestItem: NSManagedObject, IdentifiableDatabaseObject {
 
@@ -120,13 +120,19 @@ public final class TestItem: NSManagedObject, IdentifiableDatabaseObject {
         set { positionRaw = newValue?.storage }
     }
 
+    public static var name: Field<TestItem, String> { .init(key: "name") }
+    public static var order: Field<TestItem, Int32> { .init(key: "order") }
+    public static var score: Field<TestItem, Double> { .init(key: "score") }
+    public static var isDone: Field<TestItem, Bool> { .init(key: "isDone") }
+    public static var createdAt: Field<TestItem, Date> { .init(key: "createdAt") }
+    public static var note: Field<TestItem, String?> { .init(key: "note") }
+    public static var kind: Field<TestItem, Kind> { .init(key: "kindRaw") }
+    public static var position: Field<TestItem, Position?> { .init(key: "positionRaw") }
+    public static var folder: Field<TestItem, TestFolder?> { .init(key: "folder") }
+
     public struct Query: EntityQuery {
         public let expression: QueryExpression<TestItem>
         public init(_ expression: QueryExpression<TestItem>) { self.expression = expression }
-
-        public static func && (lhs: Query, rhs: Query) -> Query { .init(.and(lhs.expression, rhs.expression)) }
-        public static func || (lhs: Query, rhs: Query) -> Query { .init(.or(lhs.expression, rhs.expression)) }
-        public static prefix func ! (query: Query) -> Query { .init(.not(query.expression)) }
 
         public static func name(_ match: Match<String>) -> Query { .init(.match("name", match)) }
         public static func name(_ value: String) -> Query { .name(.equal(value)) }
@@ -146,28 +152,6 @@ public final class TestItem: NSManagedObject, IdentifiableDatabaseObject {
         public static func position(_ value: Position?) -> Query { .position(.equal(value)) }
         public static func folder(_ match: Match<TestFolder?>) -> Query { .init(.match("folder", match)) }
         public static func folder(_ query: TestFolder.Query) -> Query { .init(.relation("folder", query.expression)) }
-    }
-
-    public struct Field<Value>: EntityField {
-        public typealias Root = TestItem
-        public let key: String
-        public init(key: String) { self.key = key }
-
-        public static var name: Field<String> { .init(key: "name") }
-        public static var order: Field<Int32> { .init(key: "order") }
-        public static var score: Field<Double> { .init(key: "score") }
-        public static var isDone: Field<Bool> { .init(key: "isDone") }
-        public static var createdAt: Field<Date> { .init(key: "createdAt") }
-        public static var note: Field<String?> { .init(key: "note") }
-        public static var kind: Field<Kind> { .init(key: "kindRaw") }
-
-        public static func == (lhs: Field, rhs: Value) -> Query where Value: Equatable { .init(lhs.matching(.equal(rhs))) }
-        public static func != (lhs: Field, rhs: Value) -> Query where Value: Equatable { .init(lhs.matching(.notEqual(rhs))) }
-        public static func < (lhs: Field, rhs: Value) -> Query where Value: Comparable { .init(lhs.matching(.lessThan(rhs))) }
-        public static func <= (lhs: Field, rhs: Value) -> Query where Value: Comparable { .init(lhs.matching(.lessOrEqual(rhs))) }
-        public static func > (lhs: Field, rhs: Value) -> Query where Value: Comparable { .init(lhs.matching(.greaterThan(rhs))) }
-        public static func >= (lhs: Field, rhs: Value) -> Query where Value: Comparable { .init(lhs.matching(.greaterOrEqual(rhs))) }
-        public static func ~= (lhs: Field, rhs: [Value]) -> Query where Value: Equatable { .init(lhs.matching(.in(rhs))) }
     }
 
     public struct Sort: EntitySort {
@@ -228,31 +212,15 @@ public final class TestFolder: NSManagedObject, IdentifiableDatabaseObject {
         set { a_name = newValue }
     }
 
+    public static var name: Field<TestFolder, String> { .init(key: "a_name") }
+
     public struct Query: EntityQuery {
         public let expression: QueryExpression<TestFolder>
         public init(_ expression: QueryExpression<TestFolder>) { self.expression = expression }
 
-        public static func && (lhs: Query, rhs: Query) -> Query { .init(.and(lhs.expression, rhs.expression)) }
-        public static func || (lhs: Query, rhs: Query) -> Query { .init(.or(lhs.expression, rhs.expression)) }
-        public static prefix func ! (query: Query) -> Query { .init(.not(query.expression)) }
-
         public static func name(_ match: Match<String>) -> Query { .init(.match("a_name", match)) }
         public static func name(_ value: String) -> Query { .name(.equal(value)) }
         public static func items(_ match: CollectionMatch<TestItem>) -> Query { .init(.collection("r_items", match)) }
-    }
-
-    public struct Field<Value>: EntityField {
-        public typealias Root = TestFolder
-        public let key: String
-        public init(key: String) { self.key = key }
-
-        public static var name: Field<String> { .init(key: "a_name") }
-
-        public static func == (lhs: Field, rhs: Value) -> Query where Value: Equatable { .init(lhs.matching(.equal(rhs))) }
-        public static func != (lhs: Field, rhs: Value) -> Query where Value: Equatable { .init(lhs.matching(.notEqual(rhs))) }
-        public static func < (lhs: Field, rhs: Value) -> Query where Value: Comparable { .init(lhs.matching(.lessThan(rhs))) }
-        public static func > (lhs: Field, rhs: Value) -> Query where Value: Comparable { .init(lhs.matching(.greaterThan(rhs))) }
-        public static func ~= (lhs: Field, rhs: [Value]) -> Query where Value: Equatable { .init(lhs.matching(.in(rhs))) }
     }
 
     public struct Sort: EntitySort {

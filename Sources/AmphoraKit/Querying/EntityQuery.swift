@@ -2,11 +2,12 @@ import Foundation
 
 /// The typed predicate of an entity, the nested `Query` type `@Entity` generates.
 ///
-/// Conforming types are concrete and nested in their entity: implicit members (`.name("x")`,
-/// `.name == "x"`) only resolve against a concrete type, so the per-attribute members and the
-/// `&&` / `||` / `!` operators are declared on the nested type itself. The members shared by a
-/// family of entities (`.id(_:)` for identifiable ones) live in constrained extensions of this
-/// protocol and resolve just as well.
+/// Conforming types are concrete and nested in their entity: implicit members (`.name("x")`)
+/// only resolve against a concrete type, so the per-attribute members are declared on the nested
+/// type itself. The members shared by a family of entities (`.id(_:)` for identifiable ones) live
+/// in constrained extensions of this protocol and resolve just as well. The boolean operators
+/// are generic functions of the package: the compiler binds them from the expected query type,
+/// and operators declared in macro-generated types are not reliably found from other files.
 ///
 public protocol EntityQuery {
 
@@ -74,46 +75,89 @@ extension EntityQuery where Root: IdentifiableDatabaseObject {
     }
 }
 
+/// Both queries match.
+public func && <Query: EntityQuery>(lhs: Query, rhs: Query) -> Query {
+    .init(.and(lhs.expression, rhs.expression))
+}
+
+/// Either query matches.
+public func || <Query: EntityQuery>(lhs: Query, rhs: Query) -> Query {
+    .init(.or(lhs.expression, rhs.expression))
+}
+
+/// The query doesn't match.
+public prefix func ! <Query: EntityQuery>(query: Query) -> Query {
+    .init(.not(query.expression))
+}
+
 
 //-------------------
 // MARK: Field
 //-------------------
 
-/// A typed attribute of an entity, the nested `Field<Value>` type `@Entity` generates, for the
-/// expression form of the queries: `.score > 2`, `.name == "x"`.
+/// A typed attribute of an entity, for the expression form of the queries: `Note.score > 2`,
+/// `Note.name == "x" && Note.isPinned == true`.
 ///
-/// The comparison operators are declared on the nested type (see `EntityQuery`); the package
-/// provides the building blocks they delegate to.
+/// `@Entity` declares one static per attribute on the entity itself (`static var score:
+/// Field<Note, Double>`), so the entity name qualifies the field; the comparison operators live
+/// here and return the entity's `Query`.
 ///
-public protocol EntityField {
+public struct Field<Root: DatabaseObject, Value>: Sendable, Hashable {
 
-    /// The entity. Left unconstrained on purpose: a same-type requirement back to `DatabaseObject.Query`
-    /// would make the two protocols mutually recursive, which the compiler rejects.
-    associatedtype Root
-
-    /// The attribute type.
-    associatedtype Value
-
-    /// The attribute key.
-    var key: String { get }
+    /// The storage key of the attribute.
+    public let key: String
 
     /// Creates a field for a key.
-    init(key: String)
-}
+    public init(key: String) {
+        self.key = key
+    }
 
-extension EntityField {
+    /// The query matching this field against a condition. The operators call it.
+    public func matching(_ match: Match<Value>) -> Root.Query {
+        .init(.match(key, match))
+    }
 
-    /// The query matching this field against a condition. The operators of the nested type call it.
-    public func matching(_ match: Match<Value>) -> QueryExpression<Root> {
-        .match(key, match)
+    /// Equal to the value.
+    public static func == (lhs: Field, rhs: Value) -> Root.Query where Value: Equatable {
+        lhs.matching(.equal(rhs))
+    }
+
+    /// Different from the value.
+    public static func != (lhs: Field, rhs: Value) -> Root.Query where Value: Equatable {
+        lhs.matching(.notEqual(rhs))
+    }
+
+    /// Less than the value.
+    public static func < (lhs: Field, rhs: Value) -> Root.Query where Value: Comparable {
+        lhs.matching(.lessThan(rhs))
+    }
+
+    /// Less than or equal to the value.
+    public static func <= (lhs: Field, rhs: Value) -> Root.Query where Value: Comparable {
+        lhs.matching(.lessOrEqual(rhs))
+    }
+
+    /// Greater than the value.
+    public static func > (lhs: Field, rhs: Value) -> Root.Query where Value: Comparable {
+        lhs.matching(.greaterThan(rhs))
+    }
+
+    /// Greater than or equal to the value.
+    public static func >= (lhs: Field, rhs: Value) -> Root.Query where Value: Comparable {
+        lhs.matching(.greaterOrEqual(rhs))
+    }
+
+    /// One of the values.
+    public static func ~= (lhs: Field, rhs: [Value]) -> Root.Query where Value: Equatable {
+        lhs.matching(.in(rhs))
     }
 }
 
-extension EntityField where Root: IdentifiableDatabaseObject, Value == Root.ID {
+extension IdentifiableDatabaseObject {
 
-    /// The identifier field.
-    public static var id: Self {
-        .init(key: Root.idKey)
+    /// The identifier field, for the expression form of the queries: `Note.id == "x"`.
+    public static var id: Field<Self, ID> {
+        .init(key: idKey)
     }
 }
 

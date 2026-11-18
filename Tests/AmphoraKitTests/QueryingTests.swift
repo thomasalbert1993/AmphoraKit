@@ -74,11 +74,13 @@ struct QueryingTests {
 
     @Test("the expression form resolves on the entity fields")
     func expressionForm() {
-        #expect(format(.name == "x" && .score > 2) == #"name == "x" AND score > 2"#)
-        #expect(format(.order >= 3) == "order >= 3")
-        #expect(format(.kind == .urgent) == #"kindRaw == "urgent""#)
-        #expect(format(!(.name ~= ["a", "b"])) == #"NOT name IN {"a", "b"}"#)
-        #expect(format(.note == nil) == "note == nil")
+        #expect(format(TestItem.name == "x" && TestItem.score > 2) == #"name == "x" AND score > 2"#)
+        #expect(format(TestItem.order >= 3) == "order >= 3")
+        #expect(format(TestItem.kind == .urgent) == #"kindRaw == "urgent""#)
+        #expect(format(!(TestItem.name ~= ["a", "b"])) == #"NOT name IN {"a", "b"}"#)
+        #expect(format(TestItem.note == nil) == "note == nil")
+        #expect(format(TestItem.id == "i" && .name("x")) == #"id == "i" AND name == "x""#)
+        #expect(format(TestItem.folder == nil) == "folder == nil")
     }
 
     @Test("all(of:) ANDs a list and is nil for none")
@@ -95,9 +97,9 @@ struct QueryingTests {
         #expect(format(.id("i1")) == #"id == "i1""#)
         #expect(format(.ids(["i1", "i2"])) == #"id IN {"i1", "i2"}"#)
         #expect(format(.id(.hasPrefix("i"))) == #"id BEGINSWITH "i""#)
-        #expect(format(.id == "i1") == #"id == "i1""#)
+        #expect(format(TestItem.id == "i1") == #"id == "i1""#)
         #expect(folderFormat(.id("f1")) == #"a_id == "f1""#)
-        #expect(folderFormat(.id == "f1") == #"a_id == "f1""#)
+        #expect(folderFormat(TestFolder.id == "f1") == #"a_id == "f1""#)
     }
 
     // MARK: Relationships

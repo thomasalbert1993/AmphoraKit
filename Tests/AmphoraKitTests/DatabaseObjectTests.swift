@@ -70,9 +70,9 @@ struct DatabaseObjectTests {
         #expect(try TestItem.fetch(matching: [.kind(.plain), .name(.in(["a", "b"]))], in: context).count == 2)
         #expect(try TestItem.first(matching: .kind(.archived), in: context)?.name == "c")
         #expect(try TestItem.fetch(sortedBy: [.score], limit: 1, in: context).map(\.name) == ["b"])
-        #expect(try TestItem.count(matching: .kind == .plain, in: context) == 2)
-        #expect(TestItem.fetchAll(matching: .name("a"), in: context).count == 1)
-        #expect(TestItem.fetchFirst(matching: .name("zzz"), in: context) == nil)
+        #expect(try TestItem.count(matching: TestItem.kind == .plain, in: context) == 2)
+        #expect(TestItem.fetchOrEmpty(matching: .name("a"), in: context).count == 1)
+        #expect(TestItem.fetchFirstOrNil(matching: .name("zzz"), in: context) == nil)
     }
 
     @Test("update(with:) sets values by key and calls didUpdate")
@@ -91,20 +91,20 @@ struct DatabaseObjectTests {
         let (database, _) = try makeDatabase()
         try await database.seedItems(["x", "y"])
         let context = database.viewContext
-        #expect(TestItem.fetchAll(matching: NSPredicate(format: "name == %@", "x"), in: context).count == 1)
-        #expect(TestItem.fetchFirst(matching: NSPredicate(format: "name == %@", "y"), in: context)?.name == "y")
+        #expect(TestItem.fetchOrEmpty(matching: NSPredicate(format: "name == %@", "x"), in: context).count == 1)
+        #expect(TestItem.fetchFirstOrNil(matching: NSPredicate(format: "name == %@", "y"), in: context)?.name == "y")
     }
 }
 
 extension DatabaseObjectTests {
 
-    @Test("fetchAll takes a sort and a limit without a query")
-    func fetchAllSortedAndLimited() async throws {
+    @Test("fetchOrEmpty takes a sort and a limit without a query")
+    func fetchOrEmptySortedAndLimited() async throws {
         let (database, _) = try makeDatabase()
         try await database.seedItems(["c", "a", "b"])
         let context = database.viewContext
-        #expect(TestItem.fetchAll(sortedBy: [.name], limit: 2, in: context).map(\.name) == ["a", "b"])
-        #expect(TestItem.fetchAll(matching: .all, sortedBy: [.name], in: context).map(\.name) == ["a", "b", "c"])
-        #expect(TestItem.fetchAll(matching: .name(.notEqual("a")), sortedBy: [.name.descending], limit: 1, in: context).map(\.name) == ["c"])
+        #expect(TestItem.fetchOrEmpty(sortedBy: [.name], limit: 2, in: context).map(\.name) == ["a", "b"])
+        #expect(TestItem.fetchOrEmpty(matching: .all, sortedBy: [.name], in: context).map(\.name) == ["a", "b", "c"])
+        #expect(TestItem.fetchOrEmpty(matching: .name(.notEqual("a")), sortedBy: [.name.descending], limit: 1, in: context).map(\.name) == ["c"])
     }
 }
