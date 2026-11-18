@@ -12,7 +12,7 @@ import CoreData
 /// }
 /// ```
 ///
-public protocol DatabaseSchema {
+public protocol DatabaseSchema: Sendable {
 
     /// The managed object model of the schema, loaded once.
     static var model: NSManagedObjectModel { get }

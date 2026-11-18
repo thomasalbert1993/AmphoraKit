@@ -96,6 +96,13 @@ public final class TestItem: NSManagedObject, IdentifiableDatabaseObject {
     @NSManaged public var positionRaw: String?
     @NSManaged public var folder: TestFolder?
 
+    /// How many times `didUpdate()` ran, for the tests of `update(with:)`.
+    public private(set) var didUpdateCount = 0
+
+    public func didUpdate() {
+        didUpdateCount += 1
+    }
+
     /// A stored enum.
     public enum Kind: String, CaseIterable, Sendable {
         case plain, urgent, archived
