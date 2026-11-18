@@ -62,6 +62,15 @@ extension TypeSyntax {
         return Syntax(argument.argument).as(TypeSyntax.self)
     }
 
+    /// Whether the type is a standard value type, which no relationship targets.
+    var isStandardValueType: Bool {
+        [
+            "String", "Substring", "Character", "Bool", "Int", "Int8", "Int16", "Int32", "Int64",
+            "UInt", "UInt8", "UInt16", "UInt32", "UInt64", "Float", "Double", "Decimal",
+            "Date", "Data", "UUID", "URL"
+        ].contains(lastComponentName ?? "")
+    }
+
     /// Whether the type is an untyped Core Data collection the macro can't type.
     var isUntypedCollection: Bool {
         ["NSSet", "NSOrderedSet", "NSMutableSet", "NSMutableOrderedSet"].contains(lastComponentName ?? "")

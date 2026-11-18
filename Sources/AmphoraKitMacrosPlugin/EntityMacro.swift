@@ -165,10 +165,13 @@ struct EntityModel {
             let docCommentLines = annotation?.docCommentLines ?? storage.docCommentLines
             let kind: Property.Kind
 
-            if let element = storage.type.setElementType {
+            // A prefixed attribute is an attribute whatever its type (a transformable `Set<String>`);
+            // without prefixes, a set of standard values is one too.
+            let canBeRelationship = isRelationship || (isUnprefixed && !(storage.type.setElementType?.isStandardValueType ?? false))
+            if canBeRelationship, let element = storage.type.setElementType {
                 kind = .toMany(element: element.trimmedDescription)
             }
-            else if storage.type.isUntypedCollection {
+            else if canBeRelationship, storage.type.isUntypedCollection {
                 context.diagnose(Diagnostic(
                     node: Syntax(storage.node),
                     message: MacroDiagnostic("untypedCollection", "'@Entity' skips '\(storage.name)': declare it as 'Set<Target>' to query it", severity: .warning)
