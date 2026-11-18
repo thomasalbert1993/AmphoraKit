@@ -68,13 +68,13 @@ extension DatabaseObject {
     //-------------------
 
     /// The objects matching every query, an empty array when the fetch fails (logged).
-    public static func fetchAll(matching queries: [Query] = [], sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) -> [Self] {
-        logged(in: context, "fetch \(entityName)") { try fetch(matching: queries, sortedBy: sorts, in: context) } ?? []
+    public static func fetchAll(matching queries: [Query] = [], sortedBy sorts: [Sort] = [], limit: Int? = nil, in context: DatabaseContext<Schema>) -> [Self] {
+        logged(in: context, "fetch \(entityName)") { try fetch(matching: queries, sortedBy: sorts, limit: limit, in: context) } ?? []
     }
 
     /// The objects matching the query, an empty array when the fetch fails (logged).
-    public static func fetchAll(matching query: Query, sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) -> [Self] {
-        fetchAll(matching: [query], sortedBy: sorts, in: context)
+    public static func fetchAll(matching query: Query, sortedBy sorts: [Sort] = [], limit: Int? = nil, in context: DatabaseContext<Schema>) -> [Self] {
+        fetchAll(matching: [query], sortedBy: sorts, limit: limit, in: context)
     }
 
     /// The objects a request returns, an empty array when the fetch fails (logged).

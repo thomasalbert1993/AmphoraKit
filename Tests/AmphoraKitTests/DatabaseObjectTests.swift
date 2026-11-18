@@ -95,3 +95,16 @@ struct DatabaseObjectTests {
         #expect(TestItem.fetchFirst(matching: NSPredicate(format: "name == %@", "y"), in: context)?.name == "y")
     }
 }
+
+extension DatabaseObjectTests {
+
+    @Test("fetchAll takes a sort and a limit without a query")
+    func fetchAllSortedAndLimited() async throws {
+        let (database, _) = try makeDatabase()
+        try await database.seedItems(["c", "a", "b"])
+        let context = database.viewContext
+        #expect(TestItem.fetchAll(sortedBy: [.name], limit: 2, in: context).map(\.name) == ["a", "b"])
+        #expect(TestItem.fetchAll(matching: .all, sortedBy: [.name], in: context).map(\.name) == ["a", "b", "c"])
+        #expect(TestItem.fetchAll(matching: .name(.notEqual("a")), sortedBy: [.name.descending], limit: 1, in: context).map(\.name) == ["c"])
+    }
+}
