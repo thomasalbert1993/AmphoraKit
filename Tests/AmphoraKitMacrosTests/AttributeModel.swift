@@ -42,6 +42,7 @@ enum AttributeSchema: DatabaseSchema {
             attribute("a_note", .stringAttributeType, optional: true),
             attribute("a_pinned", .booleanAttributeType, defaultValue: false),
             attribute("a_lens", .stringAttributeType, defaultValue: ""),
+            attribute("a_backupKind", .stringAttributeType, optional: true),
             shotReel
         ]
         reel.properties = [
@@ -106,6 +107,9 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// The lens, `nil` when the column holds none: no assignment, `nil` has no stored form there.
     @Attribute(storeAs: String.self) var lens: Lens?
+
+    /// A fallback framing over an optional column.
+    @Attribute(storeAs: String?.self, default: Kind.close) var backupKind: Kind
 
     /// A free note.
     @Attribute(access: .readWrite) var note: String?

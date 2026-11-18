@@ -343,10 +343,16 @@ struct EntityModel {
                TypeSyntax(stringLiteral: property.storageType).optionalWrappedType == nil {
                 continue
             }
+            // A value that can't be nil is encoded to the wrapped column type: coercing to the
+            // optional would match both the plain and the optional overloads of `write`.
+            let storage = TypeSyntax(stringLiteral: property.storageType)
+            let coercion = TypeSyntax(stringLiteral: exposedType).optionalWrappedType == nil
+                ? (storage.optionalWrappedType?.trimmedDescription ?? property.storageType)
+                : property.storageType
             let docLines = doc(property.docCommentLines, indent: "    ")
             members += """
             \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> Assignment {
-                    .init(storageKey: "\(property.storageName)", storageValue: AmphoraKit.StoredAccessor.write(value) as \(property.storageType))
+                    .init(storageKey: "\(property.storageName)", storageValue: AmphoraKit.StoredAccessor.write(value) as \(coercion))
                 }
 
             """

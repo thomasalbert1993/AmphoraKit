@@ -73,6 +73,8 @@ struct AttributeRuntimeTests {
         #expect(values["a_status"] as? Int32 == 2)
         #expect(values["a_note"] is NSNull)
         #expect(values["a_id"] as? String == "x")
+        let optionals = Shot.Assignment.values([.backupKind(.wide), .order(1)])
+        #expect(optionals["a_backupKind"] as? String == "wide")
 
         let database = try makeDatabase()
         let context = database.viewContext
