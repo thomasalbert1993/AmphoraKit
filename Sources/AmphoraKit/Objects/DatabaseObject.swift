@@ -25,6 +25,11 @@ public protocol DatabaseObject: NSManagedObject {
 
 extension DatabaseObject {
 
+    /// Inserts a new object in a context of the entity's schema.
+    public init(context: DatabaseContext<Schema>) {
+        self.init(context: context.nsContext)
+    }
+
     /// The Core Data entity name, by convention the class name.
     public static var entityName: String {
         String(describing: Self.self)

@@ -2,7 +2,7 @@ import SwiftSyntax
 import SwiftSyntaxMacros
 import SwiftDiagnostics
 
-/// `@Entity(attributePrefix:relationshipPrefix:)` generates the nested `Query` and `Sort` types
+/// `@Entity(attributePrefix:relationshipPrefix:generatesAccessors:)` generates the nested `Query` and `Sort` types
 /// of an entity and its static `Field`s from its `@NSManaged` and `@Stored` declarations, plus a
 /// read-only domain accessor for every prefixed storage property nothing exposes yet.
 ///
@@ -84,6 +84,7 @@ struct EntityModel {
         let arguments = attribute.labeledArguments
         let attributePrefix = arguments.argument(labeled: "attributePrefix")?.stringLiteralValue ?? ""
         let relationshipPrefix = arguments.argument(labeled: "relationshipPrefix")?.stringLiteralValue ?? ""
+        let generatesAccessors = arguments.argument(labeled: "generatesAccessors")?.as(BooleanLiteralExprSyntax.self)?.literal.tokenKind != .keyword(.false)
 
         var storages: [(name: String, type: TypeSyntax, node: TypeSyntax, docCommentLines: [String])] = []
         var excluded: Set<String> = []
@@ -182,7 +183,8 @@ struct EntityModel {
                 kind = .attribute(exposedType: annotation?.exposedType.trimmedDescription ?? storage.type.trimmedDescription)
             }
 
-            let generatesAccessor = annotation == nil
+            let generatesAccessor = generatesAccessors
+                && annotation == nil
                 && domainName != storage.name
                 && !instanceNames.contains(domainName)
                 && !Self.reservedInstanceNames.contains(domainName)

@@ -22,9 +22,12 @@ import CoreData
 ///
 /// - Parameter attributePrefix: The prefix of the attribute storage properties, `"a_"` for `a_text`.
 /// - Parameter relationshipPrefix: The prefix of the relationship storage properties, `"r_"` for `r_folder`.
+/// - Parameter generatesAccessors: Whether to write the domain accessors. The macro only sees the
+///   class body: turn it off when the accessors live in extensions, where a generated one would be
+///   a redeclaration.
 ///
 @attached(member, names: named(Query), named(Sort), arbitrary)
-public macro Entity(attributePrefix: String = "", relationshipPrefix: String = "") = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "EntityMacro")
+public macro Entity(attributePrefix: String = "", relationshipPrefix: String = "", generatesAccessors: Bool = true) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "EntityMacro")
 
 /// Leaves a storage property out of what `@Entity` generates: no query, no field, no sort, no accessor.
 ///

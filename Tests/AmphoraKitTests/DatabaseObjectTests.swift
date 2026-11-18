@@ -53,6 +53,19 @@ struct DatabaseObjectTests {
         #expect(name == "Folder")
     }
 
+    @Test("init(context:) inserts into a context of the entity's schema")
+    func insertWithTypedContext() async throws {
+        let (database, _) = try makeDatabase()
+        let count = try database.perform { context -> Int in
+            let folder = TestFolder(context: context)
+            folder.a_id = "typed"
+            folder.name = "Typed"
+            try context.save()
+            return try TestFolder.count(matching: .id("typed"), in: context)
+        }
+        #expect(count == 1)
+    }
+
     @Test("typed fetches filter, sort, limit and count")
     func typedFetches() async throws {
         let (database, _) = try makeDatabase()

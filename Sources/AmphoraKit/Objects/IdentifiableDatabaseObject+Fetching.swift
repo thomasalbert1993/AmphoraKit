@@ -23,7 +23,7 @@ extension IdentifiableDatabaseObject {
         if let existing = try first(matching: .id(id), in: context) {
             return existing
         }
-        let object = Self(context: context.nsContext)
+        let object = Self(context: context)
         object.setValue(id, forKey: idKey)
         return object
     }
