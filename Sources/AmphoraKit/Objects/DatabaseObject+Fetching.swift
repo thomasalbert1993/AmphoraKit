@@ -135,6 +135,15 @@ extension DatabaseObject {
         didUpdate()
     }
 
+    /// Applies typed attributes and relationships, `[.order(3), .reel(id: "r1")]`, the related
+    /// objects of identifiers fetched in the object's context, and calls `didUpdate()`.
+    public func apply(_ changes: [Change]) {
+        for change in changes {
+            setValue(change.value.resolve(managedObjectContext), forKey: change.storageKey)
+        }
+        didUpdate()
+    }
+
     static func logged<T>(in context: DatabaseContext<Schema>, _ description: String, _ work: () throws -> T) -> T? {
         do {
             return try work()

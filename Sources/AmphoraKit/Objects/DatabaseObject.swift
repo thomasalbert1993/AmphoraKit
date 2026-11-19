@@ -22,6 +22,26 @@ public protocol DatabaseObject: NSManagedObject {
     /// it; entities without it write values by key.
     associatedtype Assignment: EntityAssignment = UntypedAssignment<Self> where Assignment.Root == Self
 
+    /// The typed values of the entity applied on one object, attributes and relationships:
+    /// `.name("x")`, `.reel(reel)`, `.reel(id: "r1")`. `@Entity` generates it.
+    associatedtype Change: EntityChange = UntypedChange<Self> where Change.Root == Self
+
+    /// The attributes and relationships of the entity in their stored form, one `Column` per
+    /// member: `Note.Columns.text`. `@Entity` generates it; the generic APIs take key paths into it
+    /// (`\.text`), their root inferred.
+    associatedtype Columns = NoColumns
+
+    /// The identifier of the entity, `Never` for one without (see `IdentifiableDatabaseObject`):
+    /// the relationship changes by id to such an entity can't be written.
+    associatedtype ID = Never
+
+    /// The object of an identifier in a context, `nil` when the context holds none — or the
+    /// entity has no identifier. Resolves the relationship changes by id.
+    static func object(withID id: ID, in context: NSManagedObjectContext) -> Self?
+
+    /// The objects of identifiers a context holds. Resolves the relationship changes by ids.
+    static func objects(withIDs ids: [ID], in context: NSManagedObjectContext) -> [Self]
+
     /// Called after the object's values were rewritten in bulk (`update(with:)`), so that
     /// derived caches can be dropped. Does nothing by default.
     func didUpdate()
@@ -40,4 +60,15 @@ extension DatabaseObject {
     }
 
     public func didUpdate() { }
+
+    public static func object(withID id: ID, in context: NSManagedObjectContext) -> Self? {
+        nil // An entity without identifier: nothing to resolve.
+    }
+
+    public static func objects(withIDs ids: [ID], in context: NSManagedObjectContext) -> [Self] {
+        []
+    }
 }
+
+/// The `Columns` of an entity that declares none.
+public enum NoColumns { }

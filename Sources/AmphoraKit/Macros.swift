@@ -30,7 +30,7 @@ import CoreData
 ///   class body: turn it off when the accessors live in extensions, where a generated one would be
 ///   a redeclaration.
 ///
-@attached(member, names: named(Query), named(Sort), named(Assignment), named(Columns), arbitrary)
+@attached(member, names: named(Query), named(Sort), named(Assignment), named(Change), named(Columns), arbitrary)
 public macro Entity(attributePrefix: String = "", relationshipPrefix: String = "", generatesAccessors: Bool = true) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "EntityMacro")
 
 /// Leaves a storage property out of what `@Entity` generates: no query, no field, no sort, no accessor.

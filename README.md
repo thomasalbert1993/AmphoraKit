@@ -156,6 +156,11 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
   `CollectionMatch<Tag>`;
 - `Note.Sort`: `.text`, `.order`, `.kind`;
 - `Note.Assignment`: `.text("x")`, `.order(3)`, `.kind(.marker)`, each encoded to its stored form;
+- `Note.Change`: every assignment, plus the relationships — `.cue(cue)`, `.cue(id: "c1")`,
+  `.tags(tags)`, `.tags(ids: ["t1"])`;
+- `Note.Columns`: one `Column` per attribute and relationship, its storage key and stored type
+  (`Note.Columns.order: Column<Note, Int32>`, `Note.Columns.cue: Column<Note, Cue?>`); generic
+  APIs take key paths into it, their root inferred: `\.order`;
 - static fields for the expression form and the column names: `Note.order > 2`, `Note.order.key`
   (`"a_sortOrder"`).
 
@@ -176,8 +181,17 @@ note.update(with: [.text("Edited"), .kind(.marker)])
 let values = Note.Assignment.values([.order(3)])                // ["a_sortOrder": Int32(3)], for key-value APIs
 ```
 
-The compiler checks the column and the value type; relationships have no assignment, batch
-requests can't set them.
+The compiler checks the column and the value type. Batch requests can't set relationships:
+assignments only cover attributes. On one object, `apply(_:)` takes changes, relationships
+included — by object, or by identifiers fetched in the object's own context (none when it holds
+none):
+
+```swift
+note.apply([.text("Edited"), .cue(id: "c1"), .tags(ids: ["t1", "t2"])])
+```
+
+A relationship by identifiers needs an `IdentifiableDatabaseObject` target: another entity's `ID`
+is `Never`, its `.x(id:)` can't be called.
 
 ## Queries
 

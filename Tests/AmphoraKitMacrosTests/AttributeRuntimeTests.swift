@@ -276,4 +276,42 @@ struct AttributeRuntimeTests {
         #expect(b.note == nil)
         #expect(b.order == 9)
     }
+
+    @Test("Changes apply attributes and relationships, by object or by identifiers resolved in the object's context")
+    func changes() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let reel = Reel(context: context)
+        reel.apply([.id("r1"), .title("Reel")])
+        let other = Reel(context: context)
+        other.apply([.id("r2"), .title("Other")])
+
+        let shot = Shot(context: context)
+        shot.apply([.id("s1"), .name("One"), .kind(.wide), .reel(id: "r1")])
+        #expect(shot.name == "One")
+        #expect(shot.kind == .wide)
+        #expect(shot.reel === reel)
+
+        shot.apply([.reel(other)])
+        #expect(shot.reel === other)
+        shot.apply([.reel(id: "missing")])
+        #expect(shot.reel == nil)
+
+        let second = Shot(context: context)
+        second.apply([.id("s2"), .name("Two")])
+        reel.apply([.shots(ids: ["s1", "s2", "missing"])])
+        #expect(Set(reel.shots.map(\.id)) == ["s1", "s2"])
+        reel.apply([.shots([second])])
+        #expect(reel.shots.map(\.id) == ["s2"])
+    }
+
+    @Test("A key path into Columns names a column with its root inferred")
+    func columnKeyPaths() {
+        func key<Root: DatabaseObject, Stored>(_ keyPath: KeyPath<Root.Columns.Type, Column<Root, Stored>>, of root: Root.Type) -> String {
+            Root.Columns.self[keyPath: keyPath].key
+        }
+        #expect(key(\.order, of: Shot.self) == "a_sortOrder")
+        #expect(key(\.reel, of: Shot.self) == "r_reel")
+        #expect(key(\.shots, of: Reel.self) == "r_shots")
+    }
 }
