@@ -46,6 +46,12 @@ struct QueryingTests {
         #expect(format(.note(.greaterThan("m"))) == #"note > "m""#)
     }
 
+    @Test("collection attributes compare against the empty value")
+    func collections() {
+        #expect(format(.name(.isEmpty)) == #"name == """#)
+        #expect(format(.name(.isNotEmpty)) == #"name != """#)
+    }
+
     @Test("stored enums compare on their raw value")
     func rawRepresentable() {
         #expect(format(.kind(.urgent)) == #"kindRaw == "urgent""#)

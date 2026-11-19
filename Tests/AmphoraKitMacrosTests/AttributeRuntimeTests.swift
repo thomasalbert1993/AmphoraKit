@@ -78,6 +78,26 @@ struct AttributeRuntimeTests {
         #expect(values["a_kinds"] as? Set<String> == ["close"])
     }
 
+    @Test("A collection over an optional column reads empty for nil without a default")
+    func optionalCollectionColumns() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let shot = Shot(context: context)
+        shot.a_id = "e"
+        #expect(shot.a_labels == nil && shot.a_extras == nil && shot.a_framings == nil && shot.a_angles == nil)
+        #expect(shot.labels.isEmpty && shot.extras.isEmpty && shot.framings.isEmpty && shot.angles.isEmpty)
+        #expect(shot.tags == nil, "an optional property still reads nil")
+
+        shot.labels = ["a"]
+        shot.extras = ["k": "v"]
+        shot.framings = [.close, .wide]
+        shot.angles = [.wide]
+        try context.save()
+
+        #expect(shot.a_framings == ["close", "wide"])
+        #expect(shot.labels == ["a"] && shot.extras == ["k": "v"] && shot.framings == [.close, .wide] && shot.angles == [.wide])
+    }
+
     @Test("A NilStorageConvertible stores nil as its nilStorage, and isNil matches it")
     func nilStorageColumn() throws {
         let database = try makeDatabase()
@@ -137,6 +157,9 @@ struct AttributeRuntimeTests {
 
         #expect(Shot.Query.chain([.wide, .close]).nsPredicate.predicateFormat == #"a_chain == "wide,close""#)
         #expect(Shot.Query.chain([]).nsPredicate.predicateFormat == "a_chain == nil")
+        #expect(Shot.Query.chain(.isEmpty).nsPredicate.predicateFormat == "a_chain == nil")
+        #expect(Shot.Query.chain(.isNotEmpty).nsPredicate.predicateFormat == "a_chain != nil")
+        #expect(try Shot.count(matching: .chain(.isNotEmpty), in: context) == 1)
         #expect(Shot.Query.chain(.in([[.close], [.wide]])).nsPredicate.predicateFormat == #"a_chain IN {"close", "wide"}"#)
         #expect(try Shot.count(matching: .chain([.close]), in: context) == 1)
 

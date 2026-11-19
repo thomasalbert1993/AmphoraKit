@@ -253,6 +253,25 @@ extension Match where Value: OptionalValue {
 
 
 //-------------------
+// MARK: Collection
+//-------------------
+
+extension Match where Value: RangeReplaceableCollection & Equatable {
+
+    /// The attribute is empty. A coded column compares against the coder's encoding of the empty
+    /// value, so a coder writing an empty collection as `nil` matches `== nil`.
+    public static var isEmpty: Self {
+        .equal(Value())
+    }
+
+    /// The attribute is not empty, compared like `isEmpty` against the empty value's stored form.
+    public static var isNotEmpty: Self {
+        .notEqual(Value())
+    }
+}
+
+
+//-------------------
 // MARK: Codable
 //-------------------
 

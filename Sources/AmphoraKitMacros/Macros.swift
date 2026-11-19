@@ -77,6 +77,7 @@ public macro Stored<Root, Value, Exposed>(_ keyPath: KeyPath<Root, Value>, defau
 /// @Attribute(default: Kind.note) var kind: Kind                         // RawRepresentable, a_kind: String
 /// @Attribute var start: BarBeatPosition?                                // StorageConvertible, a_start: String?
 /// @Attribute(storeAs: String?.self, default: Kind.note) var kind: Kind   // optional column, non-optional property
+/// @Attribute(storeAs: Set<String>?.self) var labels: Set<String>         // optional column, empty for nil
 /// @Attribute(access: .readWrite) var isPinned: Bool                      // with a setter
 /// ```
 ///

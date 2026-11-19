@@ -49,6 +49,10 @@ enum AttributeSchema: DatabaseSchema {
             attribute("a_priority", .integer64AttributeType, defaultValue: 0),
             transformable("a_tags"),
             transformable("a_kinds"),
+            transformable("a_labels"),
+            transformable("a_extras"),
+            transformable("a_framings"),
+            transformable("a_angles"),
             shotReel
         ]
         reel.properties = [
@@ -155,6 +159,18 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// Framings stored as raw values in a transformable set.
     @Attribute(storeAs: Set<String>?.self, access: .readWrite) var kinds: Set<Kind>?
+
+    /// Labels in an optional column, empty for `nil` without a `default:`.
+    @Attribute(storeAs: Set<String>?.self, access: .readWrite) var labels: Set<String>
+
+    /// Extra values in an optional column, empty for `nil` without a `default:`.
+    @Attribute(storeAs: [String: String]?.self, access: .readWrite) var extras: [String: String]
+
+    /// Framings as raw values in an optional column, empty for `nil` without a `default:`.
+    @Attribute(storeAs: [String]?.self, access: .readWrite) var framings: [Kind]
+
+    /// Angles as raw values in an optional set column, empty for `nil` without a `default:`.
+    @Attribute(storeAs: Set<String>?.self, access: .readWrite) var angles: Set<Kind>
 
     /// A framing move, coded as comma-joined raw values, `nil` when empty.
     @Attribute(coder: KindChainCoder.self, access: .readWrite) var chain: [Kind]

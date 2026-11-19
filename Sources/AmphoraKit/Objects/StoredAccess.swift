@@ -79,6 +79,18 @@ public enum StoredAccessor {
         value ?? fallback
     }
 
+    /// A collection over an optional column, empty for `nil`: an array or a set needs no `default:`.
+    @inlinable
+    public static func read<T: ExpressibleByArrayLiteral>(_ value: T?) -> T {
+        value ?? []
+    }
+
+    /// A dictionary over an optional column, empty for `nil`.
+    @inlinable
+    public static func read<T: ExpressibleByDictionaryLiteral>(_ value: T?) -> T {
+        value ?? [:]
+    }
+
     /// A to-one relationship, `nil` when the object is a zombie.
     @inlinable
     public static func read<T: DatabaseObject>(_ object: T?) -> T? {
@@ -122,6 +134,12 @@ public enum StoredAccessor {
         raws.map { $0.compactMap(T.init(rawValue:)) }
     }
 
+    /// An array of `RawRepresentable` over an optional column of raw values, empty for `nil`.
+    @inlinable
+    public static func read<T: RawRepresentable>(_ raws: [T.RawValue]?) -> [T] {
+        (raws ?? []).compactMap(T.init(rawValue:))
+    }
+
     /// A set of `RawRepresentable` stored by raw values, the undecodable ones dropped.
     @inlinable
     public static func read<T: RawRepresentable & Hashable>(_ raws: Set<T.RawValue>) -> Set<T> {
@@ -132,6 +150,12 @@ public enum StoredAccessor {
     @inlinable
     public static func read<T: RawRepresentable & Hashable>(_ raws: Set<T.RawValue>?) -> Set<T>? {
         raws.map { Set($0.compactMap(T.init(rawValue:))) }
+    }
+
+    /// A set of `RawRepresentable` over an optional column of raw values, empty for `nil`.
+    @inlinable
+    public static func read<T: RawRepresentable & Hashable>(_ raws: Set<T.RawValue>?) -> Set<T> {
+        Set((raws ?? []).compactMap(T.init(rawValue:)))
     }
 
     /// An integer stored in another width, `Int` over an `Int32` column. Saturates out of range.
@@ -232,6 +256,7 @@ public enum StoredAccessor {
 
     /// An optional array of `RawRepresentable` written by raw values.
     @inlinable
+    @_disfavoredOverload
     public static func write<T: RawRepresentable>(_ values: [T]?) -> [T.RawValue]? {
         values.map { $0.map(\.rawValue) }
     }
@@ -244,6 +269,7 @@ public enum StoredAccessor {
 
     /// An optional set of `RawRepresentable` written by raw values.
     @inlinable
+    @_disfavoredOverload
     public static func write<T: RawRepresentable & Hashable>(_ values: Set<T>?) -> Set<T.RawValue>? where T.RawValue: Hashable {
         values.map { Set($0.map(\.rawValue)) }
     }
