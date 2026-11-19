@@ -155,10 +155,10 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
     @Attribute(access: .readWrite) var length: Length?
 
     /// Tags stored as raw values in a transformable array.
-    @Attribute(storeAs: [String]?.self, access: .readWrite) var tags: [Kind]?
+    @Attribute(access: .readWrite) var tags: [Kind]?
 
     /// Framings stored as raw values in a transformable set.
-    @Attribute(storeAs: Set<String>?.self, access: .readWrite) var kinds: Set<Kind>?
+    @Attribute(access: .readWrite) var kinds: Set<Kind>?
 
     /// Labels in an optional column, empty for `nil` without a `default:`.
     @Attribute(storeAs: Set<String>?.self, access: .readWrite) var labels: Set<String>

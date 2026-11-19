@@ -122,7 +122,8 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
   storage of a `StorageConvertible`, or the type's own `typealias StoredColumn = Int32` to pick
   another width. `storeAs:` stays for a column whose optionality differs from the property's
   (`storeAs: String?.self, default: Kind.text` over an optional column), an `Int` stored in
-  another width, collections of converted values and coders. A collection over an optional
+  another width and coders. A collection takes its element's column: `[Tag]` is stored as
+  `[Tag.StoredColumn]`, `Set<Kind>?` as `Set<Kind.StoredColumn>?`. A collection over an optional
   column needs no `default:`: `storeAs: Set<String>?.self` under a `Set<String>` reads empty for
   `nil`, arrays, sets and dictionaries alike, raw values included (`[String]?` as `[Tag]`).
 - An optional property over a non-optional column whose absence is a value (an integer code, `0`

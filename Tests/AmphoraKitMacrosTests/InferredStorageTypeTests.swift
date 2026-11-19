@@ -22,6 +22,13 @@ final class InferredStorageTypeTests: XCTestCase {
         XCTAssertEqual(inferred("Set<String>"), "Set<String>")
     }
 
+    func testCollectionsOfOtherTypesNameTheirElementsColumn() {
+        XCTAssertEqual(inferred("[Kind]"), "[Kind.StoredColumn]")
+        XCTAssertEqual(inferred("Set<ClockType>"), "Set<ClockType.StoredColumn>")
+        XCTAssertEqual(inferred("Set<Kind>?"), "Set<Kind.StoredColumn>?")
+        XCTAssertEqual(inferred("Array<Kind>"), "[Kind.StoredColumn]")
+    }
+
     func testOtherTypesNameTheirStoredColumn() {
         XCTAssertEqual(inferred("Kind"), "Kind.StoredColumn")
         XCTAssertEqual(inferred("Note.Kind"), "Note.Kind.StoredColumn")

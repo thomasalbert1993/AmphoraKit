@@ -172,7 +172,15 @@ struct AttributeAnnotation {
             guard column.hasSuffix(".StoredColumn") else { return column + "?" }
             return column.dropLast("StoredColumn".count) + "OptionalStoredColumn"
         }
-        if type.is(ArrayTypeSyntax.self) || type.is(DictionaryTypeSyntax.self) || type.setElementType != nil {
+        // A collection takes its element's column: `[Tag]` is stored as `[Tag.StoredColumn]`, a
+        // collection of plain values as it is. Dictionaries are stored as they are.
+        if let element = type.arrayElementType {
+            return "[\(inferredStorageType(of: element))]"
+        }
+        if let element = type.setElementType {
+            return "Set<\(inferredStorageType(of: element))>"
+        }
+        if type.is(DictionaryTypeSyntax.self) {
             return type.trimmedDescription
         }
         let name: String
