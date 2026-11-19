@@ -181,7 +181,7 @@ struct AttributeRuntimeTests {
         #expect(Shot.Assignment.values([.meter(stored: 0)])["a_meter"] as? Int32 == 0)
     }
 
-    @Test("A column carries the storage key and the storage type, coded columns included")
+    @Test("A column carries the storage key and the storage type, coded columns and relationships included")
     func columns() {
         let order: Column<Shot, Int32> = Shot.Columns.order
         let kind: Column<Shot, String> = Shot.Columns.kind
@@ -198,6 +198,13 @@ struct AttributeRuntimeTests {
         #expect(meter.key == "a_meter")
         #expect(note.key == "a_note")
         #expect(Shot.Columns.isPinned.key == "a_pinned")
+
+        let reel: Column<Shot, Reel?> = Shot.Columns.reel
+        let shots: Column<Reel, Set<Shot>> = Reel.Columns.shots
+        let shotsField: Field<Reel, Set<Shot>> = Reel.shots
+        #expect(reel.key == "r_reel")
+        #expect(shots.key == "r_shots")
+        #expect(shotsField.key == "r_shots")
     }
 
     @Test("A coded column reads, writes, queries and assigns through its coder")
