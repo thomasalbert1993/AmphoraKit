@@ -107,9 +107,15 @@ public macro Attribute<Stored>(_ name: String? = nil, storeAs: Stored.Type, acce
 @attached(accessor)
 public macro Attribute<Stored, Exposed>(_ name: String? = nil, storeAs: Stored.Type, default: Exposed, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
 
-/// Declares an attribute encoded by a coder: `@Attribute(storeAs: String?.self, coder:
-/// ScaleChainCoder.self) var scales: [Scale]`. The accessor, the queries and the assignments go
-/// through the coder; the column gets no sort and no static field. See `StorageCoder`.
+/// Declares an attribute encoded by a coder: `@Attribute(coder: ScaleChainCoder.self) var
+/// scales: [Scale]`, the column typed by the coder's `Stored`. The accessor, the queries and the
+/// assignments go through the coder; the column gets no sort and no static field. See
+/// `StorageCoder`.
+@attached(accessor)
+public macro Attribute<Coder: StorageCoder>(_ name: String? = nil, coder: Coder.Type, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares an attribute encoded by a coder, its column type spelled out. See
+/// `Attribute(_:coder:access:)`.
 @attached(accessor)
 public macro Attribute<Stored, Coder: StorageCoder>(_ name: String? = nil, storeAs: Stored.Type, coder: Coder.Type, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro") where Coder.Stored == Stored
 

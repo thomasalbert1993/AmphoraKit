@@ -125,13 +125,17 @@ struct AttributeAnnotation {
         )
     }
 
-    /// The type of the `@NSManaged` storage: `storeAs:`, the exposed type when Core Data stores it
-    /// as is, `Exposed.StoredColumn` otherwise, `Set<Target>` for a to-many.
+    /// The type of the `@NSManaged` storage: `storeAs:`, the coder's `Stored`, the exposed type
+    /// when Core Data stores it as is, `Exposed.StoredColumn` otherwise, `Set<Target>` for a
+    /// to-many.
     var storageType: String {
         switch role {
         case .attribute:
             if let storeAs {
                 return storeAs.trimmedDescription
+            }
+            if let coder {
+                return "\(coder.trimmedDescription).Stored"
             }
             return Self.inferredStorageType(of: exposedType)
         case .relationship:

@@ -156,7 +156,7 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
     @Attribute(storeAs: Set<String>?.self, access: .readWrite) var kinds: Set<Kind>?
 
     /// A framing move, coded as comma-joined raw values, `nil` when empty.
-    @Attribute(storeAs: String?.self, coder: KindChainCoder.self, access: .readWrite) var chain: [Kind]
+    @Attribute(coder: KindChainCoder.self, access: .readWrite) var chain: [Kind]
 
     /// A meter stored as a code, `0` for none, in a non-optional column.
     enum Meter: NilStorageConvertible, Sendable {
