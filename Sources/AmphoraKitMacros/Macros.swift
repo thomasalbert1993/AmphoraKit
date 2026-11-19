@@ -74,19 +74,29 @@ public macro Stored<Root, Value, Exposed>(_ keyPath: KeyPath<Root, Value>, defau
 /// ```swift
 /// @Attribute var name: String                                          // @NSManaged var a_name: String
 /// @Attribute("a_sortOrder", storeAs: Int32.self) var order: Int          // stored in another width
-/// @Attribute(storeAs: String.self, default: Kind.note) var kind: Kind    // RawRepresentable
-/// @Attribute(storeAs: String?.self) var start: BarBeatPosition?          // StorageConvertible
+/// @Attribute(default: Kind.note) var kind: Kind                         // RawRepresentable, a_kind: String
+/// @Attribute var start: BarBeatPosition?                                // StorageConvertible, a_start: String?
+/// @Attribute(storeAs: String?.self, default: Kind.note) var kind: Kind   // optional column, non-optional property
 /// @Attribute(access: .readWrite) var isPinned: Bool                      // with a setter
 /// ```
 ///
 /// The storage name is the property name behind the `attributePrefix` of the enclosing `@Entity`,
-/// unless given. The storage stays `internal` (or the property's `public`/`package`): `#keyPath`
+/// unless given. Without `storeAs:`, the column takes the property's type when Core Data stores
+/// it as is, and `Type.StoredColumn` otherwise — the raw value of a `RawRepresentable`, the storage
+/// of a `StorageConvertible`, or the type's own `typealias StoredColumn`. `storeAs:` stays for a
+/// column whose optionality differs from the property's, an `Int` in another width, a collection
+/// of converted values and a coder. The storage stays `internal` (or the property's `public`/`package`): `#keyPath`
 /// and the key-value APIs need to reach it. `storeAs:` is for lossless, order-preserving
 /// encodings only — integer widths, raw values, `StorageConvertible` — so that the typed queries
 /// `@Entity` generates on the exposed type stay right; unit conversions stay hand-written.
 ///
 @attached(accessor)
 public macro Attribute(_ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares an attribute with a fallback when the stored value doesn't decode, its column type
+/// inferred. See `Attribute(_:access:)`.
+@attached(accessor)
+public macro Attribute<Exposed>(_ name: String? = nil, default: Exposed, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
 
 /// Declares an attribute stored in another type. See `Attribute(_:access:)`.
 @attached(accessor)

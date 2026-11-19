@@ -95,6 +95,8 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// A progress state stored as an integer.
     enum Status: Int, Sendable {
+        /// Stored in an `Int32` column rather than the raw value's `Int64`.
+        typealias StoredColumn = Int32
         case none, ready, done
     }
 
@@ -108,10 +110,10 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
     @Attribute("a_sortOrder", storeAs: Int32.self, access: .readWrite) var order: Int
 
     /// The framing.
-    @Attribute(storeAs: String.self, default: Kind.wide, access: .readWrite) var kind: Kind
+    @Attribute(default: Kind.wide, access: .readWrite) var kind: Kind
 
     /// The progress.
-    @Attribute(storeAs: Int32.self, default: Status.none, access: .readWrite) var status: Status
+    @Attribute(default: Status.none, access: .readWrite) var status: Status
 
     /// A lens.
     enum Lens: String, Sendable {
@@ -144,7 +146,7 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
     }
 
     /// The length, stored by its storage form rather than its raw value.
-    @Attribute(storeAs: String?.self, access: .readWrite) var length: Length?
+    @Attribute(access: .readWrite) var length: Length?
 
     /// Tags stored as raw values in a transformable array.
     @Attribute(storeAs: [String]?.self, access: .readWrite) var tags: [Kind]?

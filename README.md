@@ -102,10 +102,10 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
     @Attribute("a_sortOrder", storeAs: Int32.self) var order: Int               // renamed, another width
 
     /// What the note is.
-    @Attribute(storeAs: String.self, default: Kind.text) var kind: Kind         // RawRepresentable
+    @Attribute(default: Kind.text) var kind: Kind                               // RawRepresentable, a_kind: String
 
     /// Where it starts, in bars and beats.
-    @Attribute(storeAs: String?.self) var start: BarBeatPosition?               // StorageConvertible
+    @Attribute var start: BarBeatPosition?                                      // StorageConvertible, a_start: String?
 
     @Relationship var cue: Cue?                                                 // r_cue, nil when it is a zombie
     @Relationship var tags: [Tag]                                               // r_tags: Set<Tag>, zombies removed
@@ -114,6 +114,12 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
 
 - The storage name is the property name behind the entity's prefix, unless given. It stays
   `internal` (or `public`/`package` like the property): `#keyPath` and the key-value APIs reach it.
+- Without `storeAs:`, a type Core Data stores as is keeps its type, and any other names
+  `Type.StoredColumn`, which the compiler resolves: the raw value of a `RawRepresentable`, the
+  storage of a `StorageConvertible`, or the type's own `typealias StoredColumn = Int32` to pick
+  another width. `storeAs:` stays for a column whose optionality differs from the property's
+  (`storeAs: String?.self, default: Kind.text` over an optional column), an `Int` stored in
+  another width, collections of converted values and coders.
 - `storeAs:` is for lossless, order-preserving encodings — integer widths (saturating on write),
   raw values, `StorageConvertible`, arrays and sets of raw values (`[String]` as `[Tag]`) — so
   that queries on the exposed type stay right. A type both `RawRepresentable` and

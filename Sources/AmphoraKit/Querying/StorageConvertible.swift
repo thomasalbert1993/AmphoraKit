@@ -30,6 +30,9 @@ public protocol StorageConvertible {
 
 extension StorageConvertible {
 
+    /// The Core Data column type of an `@Attribute` declared without `storeAs:`: the storage.
+    public typealias StoredColumn = Storage
+
     /// Decodes a value from its stored representation.
     public static func fromStorage(_ storage: Storage) -> Self? {
         Self(storage: storage)
@@ -37,6 +40,11 @@ extension StorageConvertible {
 }
 
 extension RawRepresentable {
+
+    /// The Core Data column type of an `@Attribute` declared without `storeAs:`: the raw value.
+    /// A type declares its own `StoredColumn` to store in another width (an `Int` raw value in an
+    /// `Int32` column), or to choose when it is also `StorageConvertible` under another type.
+    public typealias StoredColumn = RawValue
 
     /// Decodes a value from its raw value.
     public static func fromStorage(_ storage: RawValue) -> Self? {

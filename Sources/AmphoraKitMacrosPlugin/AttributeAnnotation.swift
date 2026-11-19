@@ -125,16 +125,53 @@ struct AttributeAnnotation {
         )
     }
 
-    /// The type of the `@NSManaged` storage: `storeAs:`, the exposed type, `Set<Target>` for a to-many.
+    /// The type of the `@NSManaged` storage: `storeAs:`, the exposed type when Core Data stores it
+    /// as is, `Exposed.StoredColumn` otherwise, `Set<Target>` for a to-many.
     var storageType: String {
         switch role {
         case .attribute:
-            return (storeAs ?? exposedType).trimmedDescription
+            if let storeAs {
+                return storeAs.trimmedDescription
+            }
+            return Self.inferredStorageType(of: exposedType)
         case .relationship:
             if let element = exposedType.arrayElementType {
                 return "Set<\(element.trimmedDescription)>"
             }
             return exposedType.trimmedDescription
         }
+    }
+
+    /// The names of the types Core Data stores as they are. `TimeInterval` and `CGFloat` are
+    /// aliases the macro can't see through, so they're listed by name.
+    private static let plainStorageTypes: Set<String> = [
+        "String", "Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt", "UInt8", "UInt16", "UInt32",
+        "UInt64", "Double", "Float", "CGFloat", "TimeInterval", "Date", "Data", "UUID", "URL", "Decimal",
+        "Any", "AnyObject"
+    ]
+
+    /// The column type of an attribute declared without `storeAs:`. The macro only sees syntax:
+    /// for a type Core Data can't store as is, it names `StoredColumn`, which the compiler
+    /// resolves to the raw value of a `RawRepresentable`, the storage of a `StorageConvertible`,
+    /// or the type's own alias.
+    static func inferredStorageType(of type: TypeSyntax) -> String {
+        if let wrapped = type.optionalWrappedType {
+            return inferredStorageType(of: wrapped) + "?"
+        }
+        if type.is(ArrayTypeSyntax.self) || type.is(DictionaryTypeSyntax.self) || type.setElementType != nil {
+            return type.trimmedDescription
+        }
+        let name: String
+        if let member = type.as(MemberTypeSyntax.self) {
+            name = member.name.text
+        } else if let identifier = type.as(IdentifierTypeSyntax.self) {
+            name = identifier.name.text
+        } else {
+            return type.trimmedDescription
+        }
+        if plainStorageTypes.contains(name) || name.hasPrefix("NS") {
+            return type.trimmedDescription
+        }
+        return "\(type.trimmedDescription).StoredColumn"
     }
 }
