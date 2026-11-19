@@ -360,8 +360,10 @@ struct EntityModel {
                 continue
             }
             // An optional exposed over a non-optional column has no stored form for `nil`.
+            // `OptionalStoredColumn` may be non-optional, with a stored form for `nil`.
             if TypeSyntax(stringLiteral: exposedType).optionalWrappedType != nil,
-               TypeSyntax(stringLiteral: property.storageType).optionalWrappedType == nil {
+               TypeSyntax(stringLiteral: property.storageType).optionalWrappedType == nil,
+               !property.storageType.hasSuffix(".OptionalStoredColumn") {
                 continue
             }
             // A value that can't be nil is encoded to the wrapped column type: coercing to the

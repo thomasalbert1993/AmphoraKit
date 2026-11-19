@@ -196,6 +196,13 @@ public enum StoredAccessor {
         value?.storage
     }
 
+    /// An optional `NilStorageConvertible` written to a non-optional column, `nil` as its
+    /// `nilStorage`.
+    @inlinable
+    public static func write<T: NilStorageConvertible>(_ value: T?) -> T.Storage {
+        value?.storage ?? T.nilStorage
+    }
+
     /// A to-many relationship written from an array.
     @inlinable
     public static func write<T: DatabaseObject>(_ objects: [T]) -> Set<T> {

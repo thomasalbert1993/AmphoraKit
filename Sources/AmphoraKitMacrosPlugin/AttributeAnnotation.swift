@@ -156,7 +156,11 @@ struct AttributeAnnotation {
     /// or the type's own alias.
     static func inferredStorageType(of type: TypeSyntax) -> String {
         if let wrapped = type.optionalWrappedType {
-            return inferredStorageType(of: wrapped) + "?"
+            let column = inferredStorageType(of: wrapped)
+            // The wrapped type decides the optional column: a `NilStorageConvertible` stores its
+            // absence as a value, in a non-optional one.
+            guard column.hasSuffix(".StoredColumn") else { return column + "?" }
+            return column.dropLast("StoredColumn".count) + "OptionalStoredColumn"
         }
         if type.is(ArrayTypeSyntax.self) || type.is(DictionaryTypeSyntax.self) || type.setElementType != nil {
             return type.trimmedDescription

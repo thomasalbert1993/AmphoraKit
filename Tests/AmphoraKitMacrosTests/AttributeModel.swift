@@ -45,6 +45,7 @@ enum AttributeSchema: DatabaseSchema {
             attribute("a_backupKind", .stringAttributeType, optional: true),
             attribute("a_length", .stringAttributeType, optional: true),
             attribute("a_chain", .stringAttributeType, optional: true),
+            attribute("a_meter", .integer32AttributeType, defaultValue: 0),
             transformable("a_tags"),
             transformable("a_kinds"),
             shotReel
@@ -156,6 +157,24 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// A framing move, coded as comma-joined raw values, `nil` when empty.
     @Attribute(storeAs: String?.self, coder: KindChainCoder.self, access: .readWrite) var chain: [Kind]
+
+    /// A meter stored as a code, `0` for none, in a non-optional column.
+    enum Meter: NilStorageConvertible, Sendable {
+        case common, waltz
+        static var nilStorage: Int32 { 0 }
+        typealias OptionalStoredColumn = Int32
+        init?(storage: Int32) {
+            switch storage {
+                case 1: self = .common
+                case 2: self = .waltz
+                default: return nil
+            }
+        }
+        var storage: Int32 { self == .common ? 1 : 2 }
+    }
+
+    /// The meter, `nil` stored as `0`.
+    @Attribute(access: .readWrite) var meter: Meter?
 
     /// A free note.
     @Attribute(access: .readWrite) var note: String?

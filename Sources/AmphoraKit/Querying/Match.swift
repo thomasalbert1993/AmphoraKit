@@ -84,6 +84,11 @@ public struct Match<Value> {
             case .text(let textOperator, let text, let options):
                 return PredicateFragment("\(key) \(textOperator.rawValue)\(options.predicateModifier) %@", [text])
             case .null(let isNil):
+                // A type storing its absence as a value is missing when the column holds it.
+                if let nilStorage = nilStorage(forOptional: Value.self) {
+                    let constant = PredicateFragment.constant(nilStorage)
+                    return PredicateFragment("\(key) \(isNil ? "==" : "!=") \(constant.format)", constant.arguments)
+                }
                 return PredicateFragment("\(key) \(isNil ? "==" : "!=") nil")
         }
     }

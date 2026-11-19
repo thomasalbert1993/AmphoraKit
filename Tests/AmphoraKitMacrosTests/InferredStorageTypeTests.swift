@@ -25,7 +25,7 @@ final class InferredStorageTypeTests: XCTestCase {
     func testOtherTypesNameTheirStoredColumn() {
         XCTAssertEqual(inferred("Kind"), "Kind.StoredColumn")
         XCTAssertEqual(inferred("Note.Kind"), "Note.Kind.StoredColumn")
-        XCTAssertEqual(inferred("BarBeatPosition?"), "BarBeatPosition.StoredColumn?")
-        XCTAssertEqual(inferred("Optional<Kind>"), "Kind.StoredColumn?")
+        XCTAssertEqual(inferred("BarBeatPosition?"), "BarBeatPosition.OptionalStoredColumn")
+        XCTAssertEqual(inferred("Optional<Kind>"), "Kind.OptionalStoredColumn")
     }
 }

@@ -120,6 +120,11 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
   another width. `storeAs:` stays for a column whose optionality differs from the property's
   (`storeAs: String?.self, default: Kind.text` over an optional column), an `Int` stored in
   another width, collections of converted values and coders.
+- An optional property over a non-optional column whose absence is a value (an integer code, `0`
+  for none) is a `NilStorageConvertible`: `static var nilStorage: Int32 { 0 }` and
+  `typealias OptionalStoredColumn = Int32` on the type, then `@Attribute var signature:
+  Signature?`. Writing `nil` stores `0`, and `isNil` / `isNotNil` compare with `0` instead of
+  `nil`.
 - `storeAs:` is for lossless, order-preserving encodings — integer widths (saturating on write),
   raw values, `StorageConvertible`, arrays and sets of raw values (`[String]` as `[Tag]`) — so
   that queries on the exposed type stay right. A type both `RawRepresentable` and

@@ -78,6 +78,34 @@ struct AttributeRuntimeTests {
         #expect(values["a_kinds"] as? Set<String> == ["close"])
     }
 
+    @Test("A NilStorageConvertible stores nil as its nilStorage, and isNil matches it")
+    func nilStorageColumn() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let none = Shot(context: context)
+        none.a_id = "none"
+        #expect(none.a_meter == 0)
+        #expect(none.meter == nil)
+        let waltz = Shot(context: context)
+        waltz.a_id = "waltz"
+        waltz.meter = .waltz
+        #expect(waltz.a_meter == 2)
+        waltz.meter = nil
+        #expect(waltz.a_meter == 0, "nil is written as the nil storage")
+        waltz.meter = .waltz
+        try context.save()
+
+        #expect(Shot.Query.meter(.isNil).nsPredicate.predicateFormat == "a_meter == 0")
+        #expect(Shot.Query.meter(.isNotNil).nsPredicate.predicateFormat == "a_meter != 0")
+        #expect(Shot.Query.meter(nil).nsPredicate.predicateFormat == "a_meter == 0")
+        #expect(Shot.Query.meter(.waltz).nsPredicate.predicateFormat == "a_meter == 2")
+        #expect(try Shot.fetch(matching: .meter(.isNil), in: context).map(\.a_id) == ["none"])
+        #expect(try Shot.fetch(matching: .meter(.isNotNil), in: context).map(\.a_id) == ["waltz"])
+
+        #expect(Shot.Assignment.values([.meter(nil)])["a_meter"] as? Int32 == 0)
+        #expect(Shot.Assignment.values([.meter(.common)])["a_meter"] as? Int32 == 1)
+    }
+
     @Test("A coded column reads, writes, queries and assigns through its coder")
     func codedColumn() throws {
         let database = try makeDatabase()
