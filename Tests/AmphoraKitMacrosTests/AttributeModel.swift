@@ -44,6 +44,7 @@ enum AttributeSchema: DatabaseSchema {
             attribute("a_lens", .stringAttributeType, defaultValue: ""),
             attribute("a_backupKind", .stringAttributeType, optional: true),
             attribute("a_length", .stringAttributeType, optional: true),
+            attribute("a_chain", .stringAttributeType, optional: true),
             transformable("a_tags"),
             transformable("a_kinds"),
             shotReel
@@ -151,6 +152,9 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
     /// Framings stored as raw values in a transformable set.
     @Attribute(storeAs: Set<String>?.self, access: .readWrite) var kinds: Set<Kind>?
 
+    /// A framing move, coded as comma-joined raw values, `nil` when empty.
+    @Attribute(storeAs: String?.self, coder: KindChainCoder.self, access: .readWrite) var chain: [Kind]
+
     /// A free note.
     @Attribute(access: .readWrite) var note: String?
 
@@ -178,4 +182,16 @@ final class Reel: NSManagedObject, IdentifiableDatabaseObject {
 
     /// The shots, zombies removed.
     @Relationship var shots: [Shot]
+}
+
+/// Codes a chain of framings as comma-joined raw values, an empty one as `nil`.
+enum KindChainCoder: StorageCoder {
+
+    static func decode(_ stored: String?) -> [Shot.Kind] {
+        stored?.components(separatedBy: ",").compactMap(Shot.Kind.init(rawValue:)) ?? []
+    }
+
+    static func encode(_ value: [Shot.Kind]) -> String? {
+        value.isEmpty ? nil : value.map(\.rawValue).joined(separator: ",")
+    }
 }

@@ -55,6 +55,8 @@ struct EntityModel {
         let generatesField: Bool
         /// The type of the generated accessor, the storage type.
         let storageType: String
+        /// The coder of a coded column, which its queries and assignments encode with.
+        let coder: String?
     }
 
     let typeName: String
@@ -89,6 +91,7 @@ struct EntityModel {
         let generatesAccessors = arguments.argument(labeled: "generatesAccessors")?.as(BooleanLiteralExprSyntax.self)?.literal.tokenKind != .keyword(.false)
 
         var storages: [(name: String, type: TypeSyntax, node: TypeSyntax, docCommentLines: [String], role: AttributeAnnotation.Role?)] = []
+        var coders: [String: String] = [:]
         var declared: [AttributeAnnotation] = []
         var excluded: Set<String> = []
         var annotations: [String: StoredAnnotation] = [:]
@@ -157,6 +160,9 @@ struct EntityModel {
             guard let name = annotation.storageName(attributePrefix: attributePrefix, relationshipPrefix: relationshipPrefix) else { continue }
             let type = TypeSyntax(stringLiteral: annotation.storageType)
             managedDeclarations.append((name, annotation.storageType, annotation.accessPrefix))
+            if let coder = annotation.coder {
+                coders[name] = coder.trimmedDescription
+            }
             storages.append((name, type, annotation.exposedType, annotation.docCommentLines, annotation.role))
             annotations[name] = StoredAnnotation(storageName: name, domainName: annotation.domainName, exposedType: annotation.exposedType, docCommentLines: annotation.docCommentLines)
         }
@@ -215,7 +221,9 @@ struct EntityModel {
                 && !instanceNames.contains(domainName)
                 && !Self.reservedInstanceNames.contains(domainName)
 
-            let generatesField = !staticNames.contains(domainName)
+            // A coded column has no static field: `Field` carries a key, not a coder.
+            let generatesField = coders[storage.name] == nil
+                && !staticNames.contains(domainName)
                 && !Self.reservedStaticNames.contains(domainName)
 
             properties.append(Property(
@@ -225,7 +233,8 @@ struct EntityModel {
                 docCommentLines: docCommentLines,
                 generatesAccessor: generatesAccessor,
                 generatesField: generatesField,
-                storageType: storage.type.trimmedDescription
+                storageType: storage.type.trimmedDescription,
+                coder: coders[storage.name]
             ))
         }
     }
@@ -269,9 +278,10 @@ struct EntityModel {
             let docLines = doc(property.docCommentLines, indent: "    ")
             switch property.kind {
             case .attribute(let exposedType):
+                let encodedMatch = property.coder.map { "match.encoded(by: \($0).self)" } ?? "match"
                 members += """
                 \(docLines)    \(access)static func \(property.domainName)(_ match: AmphoraKit.Match<\(exposedType)>) -> Query {
-                        .init(.match("\(property.storageName)", match))
+                        .init(.match("\(property.storageName)", \(encodedMatch)))
                     }
                 \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> Query {
                         .\(property.domainName)(.equal(value))
@@ -312,7 +322,8 @@ struct EntityModel {
     private func renderSort() -> DeclSyntax {
         var members = ""
         for property in properties {
-            guard case .attribute = property.kind else { continue }
+            // Ordering a coded column would order its encoding.
+            guard case .attribute = property.kind, property.coder == nil else { continue }
             let docLines = doc(property.docCommentLines, indent: "    ")
             members += """
             \(docLines)    \(access)static var \(property.domainName): Sort {
@@ -338,6 +349,16 @@ struct EntityModel {
         for property in properties {
             guard case .attribute(let exposedType) = property.kind,
                   !["storageKey", "storageValue"].contains(property.domainName) else { continue }
+            if let coder = property.coder {
+                let docLines = doc(property.docCommentLines, indent: "    ")
+                members += """
+                \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> Assignment {
+                        .init(storageKey: "\(property.storageName)", storageValue: \(coder).encode(value))
+                    }
+
+                """
+                continue
+            }
             // An optional exposed over a non-optional column has no stored form for `nil`.
             if TypeSyntax(stringLiteral: exposedType).optionalWrappedType != nil,
                TypeSyntax(stringLiteral: property.storageType).optionalWrappedType == nil {

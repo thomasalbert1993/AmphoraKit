@@ -120,6 +120,10 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
   `StorageConvertible` goes by its storage. A unit conversion (milliseconds exposed as seconds)
   stays a hand-written accessor.
 - The default names its type (`Kind.text`): macro arguments are checked before the property is.
+- A column whose encoding belongs to neither type takes a coder, a `StorageCoder` with `decode`
+  and `encode`: `@Attribute(storeAs: String?.self, coder: TagChainCoder.self) var tags: [Tag]`.
+  Its accessor, queries and assignments go through the coder — an empty chain can be stored as
+  `nil` — and it gets no sort and no static field, which would order or compare its encoding.
 
 `@Entity` then generates, from these declarations:
 

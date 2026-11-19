@@ -28,6 +28,9 @@ struct AttributeAnnotation {
     /// The fallback expression, `Kind.note`.
     let defaultValue: ExprSyntax?
 
+    /// The coder given by `coder:`, `ScaleChainCoder`.
+    let coder: TypeSyntax?
+
     /// Whether a setter is generated.
     let isReadWrite: Bool
 
@@ -47,6 +50,7 @@ struct AttributeAnnotation {
         case hasAccessors
         case relationshipType
         case missingStorageName
+        case coderWithDefault
 
         func diagnostic(_ macro: String) -> MacroDiagnostic {
             switch self {
@@ -58,6 +62,7 @@ struct AttributeAnnotation {
             case .hasAccessors: MacroDiagnostic("hasAccessors", "'@\(macro)' property can't declare accessors")
             case .relationshipType: MacroDiagnostic("relationshipType", "'@Relationship' expects 'Target?' for a to-one relationship or '[Target]' for a to-many one")
             case .missingStorageName: MacroDiagnostic("missingStorageName", "'@\(macro)' needs a storage name, or a prefix on the enclosing '@Entity': the storage can't share the property's name")
+            case .coderWithDefault: MacroDiagnostic("coderWithDefault", "'@\(macro)' takes a coder or a default, not both: the coder's decode decides the fallback")
             }
         }
     }
@@ -79,12 +84,16 @@ struct AttributeAnnotation {
         self.explicitStorageName = arguments.argument(labeled: nil)?.stringLiteralValue
         self.storeAs = arguments.argument(labeled: "storeAs")?.metatypeArgument
         self.defaultValue = arguments.argument(labeled: "default")?.trimmed
+        self.coder = arguments.argument(labeled: "coder")?.metatypeArgument
         self.isReadWrite = arguments.argument(labeled: "access")?.trimmedDescription.hasSuffix("readWrite") ?? false
         self.docCommentLines = variable.docCommentLines
         self.accessPrefix = variable.modifiers.generatedAccessPrefix
 
         if role == .relationship, type.arrayElementType == nil, type.optionalWrappedType == nil {
             throw .relationshipType
+        }
+        if coder != nil, defaultValue != nil {
+            throw .coderWithDefault
         }
     }
 

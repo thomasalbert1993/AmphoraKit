@@ -58,8 +58,17 @@ enum StorageExpansion {
         }
 
         let storage = "self.\(storageName)"
-        let read = annotation.defaultValue.map { "AmphoraKit.StoredAccessor.read(\(storage), default: \($0))" }
-            ?? "AmphoraKit.StoredAccessor.read(\(storage))"
+        let read: String
+        let write: String
+        if let coder = annotation.coder {
+            read = "\(coder).decode(\(storage))"
+            write = "\(coder).encode(newValue)"
+        }
+        else {
+            read = annotation.defaultValue.map { "AmphoraKit.StoredAccessor.read(\(storage), default: \($0))" }
+                ?? "AmphoraKit.StoredAccessor.read(\(storage))"
+            write = "AmphoraKit.StoredAccessor.write(newValue)"
+        }
         var accessors: [AccessorDeclSyntax] = [
             """
             get {
@@ -71,7 +80,7 @@ enum StorageExpansion {
             accessors.append(
                 """
                 set {
-                    \(raw: storage) = AmphoraKit.StoredAccessor.write(newValue)
+                    \(raw: storage) = \(raw: write)
                 }
                 """
             )

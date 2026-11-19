@@ -78,6 +78,30 @@ struct AttributeRuntimeTests {
         #expect(values["a_kinds"] as? Set<String> == ["close"])
     }
 
+    @Test("A coded column reads, writes, queries and assigns through its coder")
+    func codedColumn() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let shot = Shot(context: context)
+        shot.a_id = "c"
+        #expect(shot.chain == [])
+        shot.chain = [.wide, .close]
+        #expect(shot.a_chain == "wide,close")
+        shot.chain = []
+        #expect(shot.a_chain == nil, "an empty chain is stored as nil")
+        shot.chain = [.close]
+        try context.save()
+
+        #expect(Shot.Query.chain([.wide, .close]).nsPredicate.predicateFormat == #"a_chain == "wide,close""#)
+        #expect(Shot.Query.chain([]).nsPredicate.predicateFormat == "a_chain == nil")
+        #expect(Shot.Query.chain(.in([[.close], [.wide]])).nsPredicate.predicateFormat == #"a_chain IN {"close", "wide"}"#)
+        #expect(try Shot.count(matching: .chain([.close]), in: context) == 1)
+
+        let values = Shot.Assignment.values([.chain([.wide]), .chain([])])
+        #expect(values["a_chain"] is NSNull, "the last assignment of a key wins")
+        #expect(Shot.Assignment.values([.chain([.wide])])["a_chain"] as? String == "wide")
+    }
+
     @Test("The queries are typed on the exposed types and keyed on the storage")
     func queries() throws {
         #expect(Shot.Query.order(.greaterThan(2)).nsPredicate.predicateFormat == "a_sortOrder > 2")
