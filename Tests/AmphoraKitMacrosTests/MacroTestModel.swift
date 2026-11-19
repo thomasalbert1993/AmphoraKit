@@ -1,6 +1,5 @@
 import CoreData
 import AmphoraKit
-import AmphoraKitMacros
 import AmphoraKitTestSupport
 
 /// A schema whose entities are declared with the macros, to check the generated members end to end.

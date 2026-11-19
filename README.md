@@ -25,7 +25,7 @@ typed queries that never spell a storage key at the call site.
 | visionOS | 2 |
 
 Swift 6.3 / Xcode 27. Xcode asks to trust the macros plugin once; command-line builds pass
-`-skipMacroValidation`. A file importing SwiftData too qualifies `@AmphoraKitMacros.Attribute`.
+`-skipMacroValidation`. A file importing SwiftData too qualifies `@AmphoraKit.Attribute`.
 
 ## Installation
 
@@ -39,8 +39,8 @@ dependencies: [
 
 | Product | Add it to | Contents |
 |---|---|---|
-| `AmphoraKit` | the app | Database, contexts, tasks, fetching, batch requests, queries |
-| `AmphoraKitMacros` | the app, optional | `@Entity`, `@Attribute`, `@Relationship`, `@Stored`, `@StorageOnly` (re-exports `AmphoraKit`) |
+| `AmphoraKit` | the app | Database, contexts, tasks, fetching, batch requests, queries, and the macros: `@Entity`, `@Attribute`, `@Relationship`, `@Stored`, `@StorageOnly` |
+| `AmphoraKitMacros` | — | kept for `import AmphoraKitMacros`, re-exports `AmphoraKit` |
 | `AmphoraKitTestSupport` | test targets | ephemeral databases, `awaitCondition`, a test model |
 
 ## Core concepts
@@ -85,7 +85,7 @@ With the macros, each column is one line: `@Entity` writes the `@NSManaged` stor
 becomes its accessor.
 
 ```swift
-import AmphoraKitMacros
+import AmphoraKit
 
 @objc(Note)
 @Entity(attributePrefix: "a_", relationshipPrefix: "r_")
@@ -298,7 +298,7 @@ nothing hidden:
 Pick AmphoraKit when an app already has a Core Data store, writes in bulk (a sync engine, an
 importer), needs predicates `#Predicate` can't express, or must keep a column layout another
 system shares. For a new app without those needs, SwiftData is the simpler choice. Both can be
-open in one app: a file importing the two qualifies the macros, `@AmphoraKitMacros.Attribute`.
+open in one app: a file importing the two qualifies the macros, `@AmphoraKit.Attribute`.
 
 ## License
 

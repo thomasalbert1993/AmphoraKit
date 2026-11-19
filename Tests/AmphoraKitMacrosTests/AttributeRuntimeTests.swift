@@ -1,7 +1,6 @@
 import CoreData
 import Testing
 import AmphoraKit
-import AmphoraKitMacros
 import AmphoraKitTestSupport
 
 /// Entities declared with `@Attribute` and `@Relationship` only, against a real store.

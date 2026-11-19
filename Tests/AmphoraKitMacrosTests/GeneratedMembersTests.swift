@@ -1,7 +1,6 @@
 import CoreData
 import Testing
 import AmphoraKit
-import AmphoraKitMacros
 import AmphoraKitTestSupport
 
 /// The members `@Entity` and `@Stored` generate, used the way an app would.

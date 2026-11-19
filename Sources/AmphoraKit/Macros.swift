@@ -1,5 +1,4 @@
 import CoreData
-@_exported import AmphoraKit
 
 /// Generates the typed queries, sorts and fields of an entity, and the domain accessors of its
 /// storage properties.

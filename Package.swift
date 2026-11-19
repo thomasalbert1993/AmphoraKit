@@ -18,17 +18,18 @@ let package = Package(
         .library(name: "AmphoraKitTestSupport", targets: ["AmphoraKitTestSupport"])
     ],
     dependencies: [
-        // Only the macros product pulls it in.
+        // The macros' implementation, a compiler plugin built with the package.
         .package(url: "https://github.com/swiftlang/swift-syntax.git", "601.0.0"..<"700.0.0")
     ],
     targets: [
-        .target(name: "AmphoraKit"),
+        // The runtime and the macro declarations: `import AmphoraKit` brings `@Entity` too.
+        .target(name: "AmphoraKit", dependencies: ["AmphoraKitMacrosPlugin"]),
         .target(name: "AmphoraKitTestSupport", dependencies: ["AmphoraKit"]),
         .testTarget(name: "AmphoraKitTests", dependencies: ["AmphoraKit", "AmphoraKitTestSupport"]),
 
-        // The macro declarations consumers import…
-        .target(name: "AmphoraKitMacros", dependencies: ["AmphoraKit", "AmphoraKitMacrosPlugin"]),
-        // … and their implementation, run by the compiler.
+        // Kept for `import AmphoraKitMacros`: re-exports AmphoraKit.
+        .target(name: "AmphoraKitMacros", dependencies: ["AmphoraKit"]),
+        // The macros' implementation, run by the compiler.
         .macro(
             name: "AmphoraKitMacrosPlugin",
             dependencies: [
