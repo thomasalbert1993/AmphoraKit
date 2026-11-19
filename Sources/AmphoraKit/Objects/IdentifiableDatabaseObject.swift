@@ -23,15 +23,3 @@ public protocol IdentifiableDatabaseObject: DatabaseObject, Identifiable where I
     /// The identifier.
     var id: ID { get }
 }
-
-extension IdentifiableDatabaseObject {
-
-    public static func object(withID id: ID, in context: NSManagedObjectContext) -> Self? {
-        try? fetch(id: id, in: DatabaseContext(context))
-    }
-
-    public static func objects(withIDs ids: [ID], in context: NSManagedObjectContext) -> [Self] {
-        guard !ids.isEmpty else { return [] }
-        return (try? fetch(ids: ids, in: DatabaseContext(context))) ?? []
-    }
-}

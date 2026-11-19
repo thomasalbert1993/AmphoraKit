@@ -71,7 +71,7 @@ struct AttributeRuntimeTests {
         #expect(shot.kinds == [.wide])
 
         #expect(Shot.Query.length(Shot.Length(bars: 4, beats: 2)).nsPredicate.predicateFormat == #"a_length == "4-2""#)
-        let values = Shot.Assignment.values([.length(Shot.Length(bars: 1, beats: 0)), .tags([.wide]), .kinds([.close])])
+        let values = Shot.AttributeAssignment.values([.length(Shot.Length(bars: 1, beats: 0)), .tags([.wide]), .kinds([.close])])
         #expect(values["a_length"] as? String == "1-0")
         #expect(values["a_tags"] as? [String] == ["wide"])
         #expect(values["a_kinds"] as? Set<String> == ["close"])
@@ -121,8 +121,8 @@ struct AttributeRuntimeTests {
         #expect(try Shot.fetch(matching: .meter(.isNil), in: context).map(\.a_id) == ["none"])
         #expect(try Shot.fetch(matching: .meter(.isNotNil), in: context).map(\.a_id) == ["waltz"])
 
-        #expect(Shot.Assignment.values([.meter(nil)])["a_meter"] as? Int32 == 0)
-        #expect(Shot.Assignment.values([.meter(.common)])["a_meter"] as? Int32 == 1)
+        #expect(Shot.AttributeAssignment.values([.meter(nil)])["a_meter"] as? Int32 == 0)
+        #expect(Shot.AttributeAssignment.values([.meter(.common)])["a_meter"] as? Int32 == 1)
     }
 
     @Test("An integer enum stored in its raw value's width reads, writes, queries and assigns")
@@ -137,7 +137,7 @@ struct AttributeRuntimeTests {
         try context.save()
         #expect(Shot.Query.priority(.high).nsPredicate.predicateFormat == "a_priority == 1")
         #expect(try Shot.count(matching: .priority(.high), in: context) == 1)
-        #expect(Shot.Assignment.values([.priority(.high)])["a_priority"] as? Int == 1)
+        #expect(Shot.AttributeAssignment.values([.priority(.high)])["a_priority"] as? Int == 1)
     }
 
     @Test("A to-many relationship declared .sorted reads in the target's order; the plain read leaves them be")
@@ -170,15 +170,15 @@ struct AttributeRuntimeTests {
         try context.save()
         #expect(Shot.Query.memo(Shot.Memo(lines: ["a", "b"])).nsPredicate.predicateFormat == #"a_memo == "a|b""#)
         #expect(try Shot.count(matching: .memo(Shot.Memo(lines: ["a", "b"])), in: context) == 1)
-        #expect(Shot.Assignment.values([.memo(Shot.Memo(lines: ["c"]))])["a_memo"] as? String == "c")
+        #expect(Shot.AttributeAssignment.values([.memo(Shot.Memo(lines: ["c"]))])["a_memo"] as? String == "c")
     }
 
     @Test("A stored-form assignment writes the value as is, one this version can't decode included")
     func storedFormAssignment() {
-        #expect(Shot.Assignment.values([.kind(stored: "drone")])["a_kind"] as? String == "drone")
-        #expect(Shot.Assignment.values([.order(stored: 7)])["a_sortOrder"] as? Int32 == 7)
-        #expect(Shot.Assignment.values([.chain(stored: "wide,nope")])["a_chain"] as? String == "wide,nope")
-        #expect(Shot.Assignment.values([.meter(stored: 0)])["a_meter"] as? Int32 == 0)
+        #expect(Shot.AttributeAssignment.values([.kind(stored: "drone")])["a_kind"] as? String == "drone")
+        #expect(Shot.AttributeAssignment.values([.order(stored: 7)])["a_sortOrder"] as? Int32 == 7)
+        #expect(Shot.AttributeAssignment.values([.chain(stored: "wide,nope")])["a_chain"] as? String == "wide,nope")
+        #expect(Shot.AttributeAssignment.values([.meter(stored: 0)])["a_meter"] as? Int32 == 0)
     }
 
     @Test("A column carries the storage key and the storage type, coded columns and relationships included")
@@ -229,9 +229,9 @@ struct AttributeRuntimeTests {
         #expect(Shot.Query.chain(.in([[.close], [.wide]])).nsPredicate.predicateFormat == #"a_chain IN {"close", "wide"}"#)
         #expect(try Shot.count(matching: .chain([.close]), in: context) == 1)
 
-        let values = Shot.Assignment.values([.chain([.wide]), .chain([])])
+        let values = Shot.AttributeAssignment.values([.chain([.wide]), .chain([])])
         #expect(values["a_chain"] is NSNull, "the last assignment of a key wins")
-        #expect(Shot.Assignment.values([.chain([.wide])])["a_chain"] as? String == "wide")
+        #expect(Shot.AttributeAssignment.values([.chain([.wide])])["a_chain"] as? String == "wide")
     }
 
     @Test("The queries are typed on the exposed types and keyed on the storage")
@@ -248,13 +248,13 @@ struct AttributeRuntimeTests {
 
     @Test("Assignments encode to the stored form for batch inserts, batch updates and update(with:)")
     func assignments() throws {
-        let values = Shot.Assignment.values([.order(4), .kind(.close), .status(.done), .note(nil), .id("x")])
+        let values = Shot.AttributeAssignment.values([.order(4), .kind(.close), .status(.done), .note(nil), .id("x")])
         #expect(values["a_sortOrder"] as? Int32 == 4)
         #expect(values["a_kind"] as? String == "close")
         #expect(values["a_status"] as? Int32 == 2)
         #expect(values["a_note"] is NSNull)
         #expect(values["a_id"] as? String == "x")
-        let optionals = Shot.Assignment.values([.backupKind(.wide), .order(1)])
+        let optionals = Shot.AttributeAssignment.values([.backupKind(.wide), .order(1)])
         #expect(optionals["a_backupKind"] as? String == "wide")
 
         let database = try makeDatabase()
@@ -277,31 +277,31 @@ struct AttributeRuntimeTests {
         #expect(b.order == 9)
     }
 
-    @Test("Changes apply attributes and relationships, by object or by identifiers resolved in the object's context")
-    func changes() throws {
+    @Test("Assignments write attributes and relationships, to-one and to-many, on one object")
+    func objectAssignments() throws {
         let database = try makeDatabase()
         let context = database.viewContext
         let reel = Reel(context: context)
-        reel.apply([.id("r1"), .title("Reel")])
+        reel.update(with: [.id("r1"), .title("Reel")])
         let other = Reel(context: context)
-        other.apply([.id("r2"), .title("Other")])
+        other.update(with: [.id("r2"), .title("Other")])
 
         let shot = Shot(context: context)
-        shot.apply([.id("s1"), .name("One"), .kind(.wide), .reel(id: "r1")])
+        shot.update(with: [.id("s1"), .name("One"), .kind(.wide), .reel(reel)])
         #expect(shot.name == "One")
         #expect(shot.kind == .wide)
         #expect(shot.reel === reel)
 
-        shot.apply([.reel(other)])
+        shot.update(with: [.reel(other)])
         #expect(shot.reel === other)
-        shot.apply([.reel(id: "missing")])
+        shot.update(with: [.reel(nil)])
         #expect(shot.reel == nil)
 
         let second = Shot(context: context)
-        second.apply([.id("s2"), .name("Two")])
-        reel.apply([.shots(ids: ["s1", "s2", "missing"])])
+        second.update(with: [.id("s2"), .name("Two")])
+        reel.update(with: [.shots([shot, second])])
         #expect(Set(reel.shots.map(\.id)) == ["s1", "s2"])
-        reel.apply([.shots([second])])
+        reel.update(with: [.shots([second])])
         #expect(reel.shots.map(\.id) == ["s2"])
     }
 

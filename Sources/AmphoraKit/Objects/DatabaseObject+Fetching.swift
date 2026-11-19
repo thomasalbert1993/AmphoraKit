@@ -127,19 +127,11 @@ extension DatabaseObject {
         didUpdate()
     }
 
-    /// Sets typed values, `[.order(3), .kind(.marker)]`, and calls `didUpdate()`.
+    /// Sets typed attributes and relationships, `[.order(3), .kind(.marker), .reel(reel)]`, and
+    /// calls `didUpdate()`.
     public func update(with assignments: [Assignment]) {
         for assignment in assignments {
             setValue(assignment.storageValue, forKey: assignment.storageKey)
-        }
-        didUpdate()
-    }
-
-    /// Applies typed attributes and relationships, `[.order(3), .reel(id: "r1")]`, the related
-    /// objects of identifiers fetched in the object's context, and calls `didUpdate()`.
-    public func apply(_ changes: [Change]) {
-        for change in changes {
-            setValue(change.value.resolve(managedObjectContext), forKey: change.storageKey)
         }
         didUpdate()
     }

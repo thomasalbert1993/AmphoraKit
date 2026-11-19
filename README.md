@@ -155,9 +155,10 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
   typed `Kind`, `.cue(_:)` taking a `Match<Cue?>` or a `Cue.Query`, `.tags(_:)` taking a
   `CollectionMatch<Tag>`;
 - `Note.Sort`: `.text`, `.order`, `.kind`;
-- `Note.Assignment`: `.text("x")`, `.order(3)`, `.kind(.marker)`, each encoded to its stored form;
-- `Note.Change`: every assignment, plus the relationships — `.cue(cue)`, `.cue(id: "c1")`,
-  `.tags(tags)`, `.tags(ids: ["t1"])`;
+- `Note.AttributeAssignment`: `.text("x")`, `.order(3)`, `.kind(.marker)`, each encoded to its
+  stored form, for the batch requests;
+- `Note.Assignment`: every attribute assignment, plus the relationships — `.cue(cue)`,
+  `.tags(tags)` — for one object;
 - `Note.Columns`: one `Column` per attribute and relationship, its storage key and stored type
   (`Note.Columns.order: Column<Note, Int32>`, `Note.Columns.cue: Column<Note, Cue?>`); generic
   APIs take key paths into it, their root inferred: `\.order`;
@@ -178,20 +179,16 @@ Without the macros, write `Query` and `Sort` by hand: a struct conforming to `En
 try Note.insert([[.id("n1"), .text("Intro"), .order(1)], [.id("n2"), .text("Outro"), .order(2)]], in: context)
 try Note.update(matching: .kind(.marker), set: [.order(0)], in: context)
 note.update(with: [.text("Edited"), .kind(.marker)])
-let values = Note.Assignment.values([.order(3)])                // ["a_sortOrder": Int32(3)], for key-value APIs
+let values = Note.AttributeAssignment.values([.order(3)])                // ["a_sortOrder": Int32(3)], for key-value APIs
 ```
 
 The compiler checks the column and the value type. Batch requests can't set relationships:
-assignments only cover attributes. On one object, `apply(_:)` takes changes, relationships
-included — by object, or by identifiers fetched in the object's own context (none when it holds
-none):
+they take `AttributeAssignment`s. On one object, `update(with:)` takes `Assignment`s, relationships
+included. The related objects are passed as fetched: the caller decides what a missing one means.
 
 ```swift
-note.apply([.text("Edited"), .cue(id: "c1"), .tags(ids: ["t1", "t2"])])
+note.update(with: [.text("Edited"), .cue(try Cue.fetch(id: "c1", in: context)), .tags(tags)])
 ```
-
-A relationship by identifiers needs an `IdentifiableDatabaseObject` target: another entity's `ID`
-is `Never`, its `.x(id:)` can't be called.
 
 ## Queries
 
@@ -305,7 +302,7 @@ nothing hidden:
 
 | | AmphoraKit | SwiftData |
 |---|---|---|
-| Batch requests | insert, update and delete, typed (`insert([[Assignment]])`, `update(matching:set:)`) | delete only |
+| Batch requests | insert, update and delete, typed (`insert([[AttributeAssignment]])`, `update(matching:set:)`) | delete only |
 | Predicates | `NSPredicate` underneath: traversals, `SUBQUERY`, raw formats as an escape hatch | `#Predicate`, which refuses what it can't translate |
 | Storage layout | yours: prefixed column names, `storeAs:` widths, raw values, `StorageConvertible`, coders onto an existing column type and format | chosen by the framework; `originalName:` renames, transformers and `Codable` values encode their own way |
 | Model and migrations | an `.xcdatamodeld`, lightweight migrations, existing stores open as they are | the Swift schema, versioned schemas and migration plans |

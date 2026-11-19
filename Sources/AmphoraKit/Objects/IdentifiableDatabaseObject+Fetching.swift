@@ -40,8 +40,8 @@ extension IdentifiableDatabaseObject {
     }
 
     /// Sets typed values on the objects with the identifiers with a batch request.
-    public static func update(ids: [ID], set assignments: [Assignment], in context: DatabaseContext<Schema>) throws {
-        try update(ids: ids, Assignment.values(assignments), in: context)
+    public static func update(ids: [ID], set assignments: [AttributeAssignment], in context: DatabaseContext<Schema>) throws {
+        try update(ids: ids, AttributeAssignment.values(assignments), in: context)
     }
 
     /// Sets attribute values on the objects with the identifiers with a batch request.

@@ -1,21 +1,23 @@
-import Foundation
+import CoreData
 
-/// A typed value for one attribute of an entity, the nested `Assignment` type `@Entity` generates:
-/// `[.order(3), .kind(.marker)]` instead of `["a_sortOrder": Int32(3), "a_kind": "marker"]`.
+/// A typed value written on one object (`update(with:)`): an attribute in its stored form, like an
+/// `AttributeAssignment`, or a relationship, to the related object (or objects) itself.
 ///
-/// Each generated member names the column and encodes the value to its stored form, so the key
-/// and the value type are both checked by the compiler. Relationships have no assignment: batch
-/// requests can't set them.
+/// `@Entity` generates the entity's `Assignment`, every `AttributeAssignment` member included, plus
+/// one per relationship: `.reel(reel)` for a to-one, `.takes(takes)` for a to-many. A related
+/// object is passed as fetched by the caller, who decides what a missing one means: `.reel(try?
+/// .fetch(id: reelId, in: context))`. Batch requests can't set relationships: they take
+/// `AttributeAssignment`s only.
 ///
 public protocol EntityAssignment {
 
-    /// The entity. Left unconstrained, like `EntityQuery.Root`.
-    associatedtype Root
+    /// The entity.
+    associatedtype Root: DatabaseObject
 
-    /// The storage key of the attribute.
+    /// The storage key of the attribute or relationship.
     var storageKey: String { get }
 
-    /// The value in its stored form, `nil` for none.
+    /// The value in its stored form — the related object, or set of objects — `nil` for none.
     var storageValue: Any? { get }
 
     /// Creates an assignment from a key and a stored value.
@@ -24,34 +26,21 @@ public protocol EntityAssignment {
 
 extension EntityAssignment {
 
-    /// The assignments as the dictionary Core Data's key-value and batch APIs take, `NSNull` for `nil`.
-    public static func values(_ assignments: [Self]) -> [String: Any] {
-        var values: [String: Any] = [:]
-        for assignment in assignments {
-            values[assignment.storageKey] = assignment.storageValue ?? NSNull()
-        }
-        return values
+    /// The assignment writing an attribute assignment's stored value.
+    public init<A: EntityAttributeAssignment>(_ assignment: A) where A.Root == Root {
+        self.init(storageKey: assignment.storageKey, storageValue: assignment.storageValue)
     }
 }
 
-extension EntityAssignment where Root: IdentifiableDatabaseObject {
+/// The `Assignment` of an entity without generated members: values are written by key.
+public struct UntypedAssignment<Root: DatabaseObject>: EntityAssignment {
 
-    /// Sets the identifier.
-    public static func id(_ id: Root.ID) -> Self {
-        .init(storageKey: Root.idKey, storageValue: id)
-    }
-}
-
-/// The assignment type of an entity without generated members, written by key only.
-public struct UntypedAssignment<Root>: EntityAssignment {
-
-    /// The storage key of the attribute.
+    /// The storage key of the attribute or relationship.
     public let storageKey: String
 
     /// The value in its stored form, `nil` for none.
     public let storageValue: Any?
 
-    /// Creates an assignment from a key and a stored value.
     public init(storageKey: String, storageValue: Any?) {
         self.storageKey = storageKey
         self.storageValue = storageValue
