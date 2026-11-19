@@ -73,6 +73,16 @@ func storageValue(of value: Any) -> Any? {
     if let convertible = value as? any StorageConvertible {
         return storageValue(of: convertible.storage)
     }
+    // A collection of enums or composites is stored element by element. A string is a
+    // collection too, of characters: it is a value.
+    if !(value is String) {
+        if let set = value as? Set<AnyHashable> {
+            return Set(set.compactMap { storageValue(of: $0.base) as? AnyHashable })
+        }
+        if let array = value as? [Any] {
+            return array.compactMap { storageValue(of: $0) }
+        }
+    }
     if let representable = value as? any RawRepresentable {
         return storageValue(of: representable.rawValue)
     }

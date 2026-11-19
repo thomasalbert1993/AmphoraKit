@@ -53,6 +53,31 @@ struct AttributeRuntimeTests {
     
     }
 
+    @Test("A type both RawRepresentable and StorageConvertible goes by its storage; collections of enums go by raw values")
+    func storageFormsAndCollections() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let shot = Shot(context: context)
+        shot.a_id = "s"
+        shot.length = Shot.Length(bars: 4, beats: 2)
+        shot.tags = [.close, .wide]
+        shot.kinds = [.wide]
+        try context.save()
+
+        #expect(shot.a_length == "4-2")
+        #expect(shot.length == Shot.Length(bars: 4, beats: 2))
+        #expect(shot.a_tags == ["close", "wide"])
+        #expect(shot.tags == [.close, .wide])
+        #expect(shot.a_kinds == ["wide"])
+        #expect(shot.kinds == [.wide])
+
+        #expect(Shot.Query.length(Shot.Length(bars: 4, beats: 2)).nsPredicate.predicateFormat == #"a_length == "4-2""#)
+        let values = Shot.Assignment.values([.length(Shot.Length(bars: 1, beats: 0)), .tags([.wide]), .kinds([.close])])
+        #expect(values["a_length"] as? String == "1-0")
+        #expect(values["a_tags"] as? [String] == ["wide"])
+        #expect(values["a_kinds"] as? Set<String> == ["close"])
+    }
+
     @Test("The queries are typed on the exposed types and keyed on the storage")
     func queries() throws {
         #expect(Shot.Query.order(.greaterThan(2)).nsPredicate.predicateFormat == "a_sortOrder > 2")

@@ -43,6 +43,9 @@ enum AttributeSchema: DatabaseSchema {
             attribute("a_pinned", .booleanAttributeType, defaultValue: false),
             attribute("a_lens", .stringAttributeType, defaultValue: ""),
             attribute("a_backupKind", .stringAttributeType, optional: true),
+            attribute("a_length", .stringAttributeType, optional: true),
+            transformable("a_tags"),
+            transformable("a_kinds"),
             shotReel
         ]
         reel.properties = [
@@ -54,6 +57,15 @@ enum AttributeSchema: DatabaseSchema {
         let model = NSManagedObjectModel()
         model.entities = [shot, reel]
         return model
+    }
+
+    private static func transformable(_ name: String) -> NSAttributeDescription {
+        let attribute = NSAttributeDescription()
+        attribute.name = name
+        attribute.attributeType = .transformableAttributeType
+        attribute.valueTransformerName = NSValueTransformerName.secureUnarchiveFromDataTransformerName.rawValue
+        attribute.isOptional = true
+        return attribute
     }
 
     private static func attribute(_ name: String, _ type: NSAttributeType, optional: Bool = false, defaultValue: Any? = nil) -> NSAttributeDescription {
@@ -110,6 +122,34 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// A fallback framing over an optional column.
     @Attribute(storeAs: String?.self, default: Kind.close) var backupKind: Kind
+
+    /// A length shown as "4. 2" (raw value) and stored as "4-2" (storage).
+    struct Length: RawRepresentable, StorageConvertible, Hashable, Sendable {
+        var bars: Int
+        var beats: Int
+        init(bars: Int, beats: Int) { self.bars = bars; self.beats = beats }
+        var rawValue: String { "\(bars). \(beats)" }
+        init?(rawValue: String) {
+            let parts = rawValue.components(separatedBy: ". ").compactMap(Int.init)
+            guard parts.count == 2 else { return nil }
+            self.init(bars: parts[0], beats: parts[1])
+        }
+        var storage: String { "\(bars)-\(beats)" }
+        init?(storage: String) {
+            let parts = storage.components(separatedBy: "-").compactMap(Int.init)
+            guard parts.count == 2 else { return nil }
+            self.init(bars: parts[0], beats: parts[1])
+        }
+    }
+
+    /// The length, stored by its storage form rather than its raw value.
+    @Attribute(storeAs: String?.self, access: .readWrite) var length: Length?
+
+    /// Tags stored as raw values in a transformable array.
+    @Attribute(storeAs: [String]?.self, access: .readWrite) var tags: [Kind]?
+
+    /// Framings stored as raw values in a transformable set.
+    @Attribute(storeAs: Set<String>?.self, access: .readWrite) var kinds: Set<Kind>?
 
     /// A free note.
     @Attribute(access: .readWrite) var note: String?

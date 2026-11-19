@@ -115,8 +115,10 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
 - The storage name is the property name behind the entity's prefix, unless given. It stays
   `internal` (or `public`/`package` like the property): `#keyPath` and the key-value APIs reach it.
 - `storeAs:` is for lossless, order-preserving encodings — integer widths (saturating on write),
-  raw values, `StorageConvertible` — so that queries on the exposed type stay right. A unit
-  conversion (milliseconds exposed as seconds) stays a hand-written accessor.
+  raw values, `StorageConvertible`, arrays and sets of raw values (`[String]` as `[Tag]`) — so
+  that queries on the exposed type stay right. A type both `RawRepresentable` and
+  `StorageConvertible` goes by its storage. A unit conversion (milliseconds exposed as seconds)
+  stays a hand-written accessor.
 - The default names its type (`Kind.text`): macro arguments are checked before the property is.
 
 `@Entity` then generates, from these declarations:

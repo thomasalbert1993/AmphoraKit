@@ -91,6 +91,49 @@ public enum StoredAccessor {
         objects.removingZombies()
     }
 
+    /// A type both `RawRepresentable` and `StorageConvertible` is stored by its storage: the raw
+    /// value is its display form.
+    @inlinable
+    public static func read<T: RawRepresentable & StorageConvertible>(_ storage: T.Storage) -> T? {
+        T(storage: storage)
+    }
+
+    /// A type both `RawRepresentable` and `StorageConvertible`, stored by an optional storage.
+    @inlinable
+    public static func read<T: RawRepresentable & StorageConvertible>(_ storage: T.Storage?) -> T? {
+        storage.flatMap(T.init(storage:))
+    }
+
+    /// A type both `RawRepresentable` and `StorageConvertible`, with a fallback.
+    @inlinable
+    public static func read<T: RawRepresentable & StorageConvertible>(_ storage: T.Storage?, default fallback: T) -> T {
+        storage.flatMap(T.init(storage:)) ?? fallback
+    }
+
+    /// An array of `RawRepresentable` stored by raw values, the undecodable ones dropped.
+    @inlinable
+    public static func read<T: RawRepresentable>(_ raws: [T.RawValue]) -> [T] {
+        raws.compactMap(T.init(rawValue:))
+    }
+
+    /// An optional array of `RawRepresentable` stored by raw values.
+    @inlinable
+    public static func read<T: RawRepresentable>(_ raws: [T.RawValue]?) -> [T]? {
+        raws.map { $0.compactMap(T.init(rawValue:)) }
+    }
+
+    /// A set of `RawRepresentable` stored by raw values, the undecodable ones dropped.
+    @inlinable
+    public static func read<T: RawRepresentable & Hashable>(_ raws: Set<T.RawValue>) -> Set<T> {
+        Set(raws.compactMap(T.init(rawValue:)))
+    }
+
+    /// An optional set of `RawRepresentable` stored by raw values.
+    @inlinable
+    public static func read<T: RawRepresentable & Hashable>(_ raws: Set<T.RawValue>?) -> Set<T>? {
+        raws.map { Set($0.compactMap(T.init(rawValue:))) }
+    }
+
     /// An integer stored in another width, `Int` over an `Int32` column. Saturates out of range.
     @inlinable
     public static func read<T: BinaryInteger, Stored: BinaryInteger>(_ stored: Stored) -> T {
@@ -157,6 +200,42 @@ public enum StoredAccessor {
     @inlinable
     public static func write<T: DatabaseObject>(_ objects: [T]) -> Set<T> {
         Set(objects)
+    }
+
+    /// A type both `RawRepresentable` and `StorageConvertible`, written by its storage.
+    @inlinable
+    public static func write<T: RawRepresentable & StorageConvertible>(_ value: T) -> T.Storage {
+        value.storage
+    }
+
+    /// An optional type both `RawRepresentable` and `StorageConvertible`, written by its storage.
+    @inlinable
+    public static func write<T: RawRepresentable & StorageConvertible>(_ value: T?) -> T.Storage? {
+        value?.storage
+    }
+
+    /// An array of `RawRepresentable` written by raw values.
+    @inlinable
+    public static func write<T: RawRepresentable>(_ values: [T]) -> [T.RawValue] {
+        values.map(\.rawValue)
+    }
+
+    /// An optional array of `RawRepresentable` written by raw values.
+    @inlinable
+    public static func write<T: RawRepresentable>(_ values: [T]?) -> [T.RawValue]? {
+        values.map { $0.map(\.rawValue) }
+    }
+
+    /// A set of `RawRepresentable` written by raw values.
+    @inlinable
+    public static func write<T: RawRepresentable & Hashable>(_ values: Set<T>) -> Set<T.RawValue> where T.RawValue: Hashable {
+        Set(values.map(\.rawValue))
+    }
+
+    /// An optional set of `RawRepresentable` written by raw values.
+    @inlinable
+    public static func write<T: RawRepresentable & Hashable>(_ values: Set<T>?) -> Set<T.RawValue>? where T.RawValue: Hashable {
+        values.map { Set($0.map(\.rawValue)) }
     }
 
     /// An integer written in the storage width. Saturates out of range rather than trapping.
