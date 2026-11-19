@@ -106,6 +106,21 @@ struct AttributeRuntimeTests {
         #expect(Shot.Assignment.values([.meter(.common)])["a_meter"] as? Int32 == 1)
     }
 
+    @Test("An integer enum stored in its raw value's width reads, writes, queries and assigns")
+    func integerEnumOwnWidth() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let shot = Shot(context: context)
+        shot.a_id = "p"
+        #expect(shot.priority == .low)
+        shot.priority = .high
+        #expect(shot.a_priority == 1)
+        try context.save()
+        #expect(Shot.Query.priority(.high).nsPredicate.predicateFormat == "a_priority == 1")
+        #expect(try Shot.count(matching: .priority(.high), in: context) == 1)
+        #expect(Shot.Assignment.values([.priority(.high)])["a_priority"] as? Int == 1)
+    }
+
     @Test("A coded column reads, writes, queries and assigns through its coder")
     func codedColumn() throws {
         let database = try makeDatabase()

@@ -152,14 +152,17 @@ public enum StoredAccessor {
         T(stored)
     }
 
-    /// A `RawRepresentable` with an integer raw value, stored in another integer width.
+    /// A `RawRepresentable` with an integer raw value, stored in another integer width. Disfavored:
+    /// in the raw value's own width, the plain raw value overload applies.
     @inlinable
+    @_disfavoredOverload
     public static func read<T: RawRepresentable, Stored: BinaryInteger>(_ stored: Stored) -> T? where T.RawValue: BinaryInteger {
         T(rawValue: T.RawValue(clamping: stored))
     }
 
     /// A `RawRepresentable` with an integer raw value, stored in another integer width, with a fallback.
     @inlinable
+    @_disfavoredOverload
     public static func read<T: RawRepresentable, Stored: BinaryInteger>(_ stored: Stored, default fallback: T) -> T where T.RawValue: BinaryInteger {
         T(rawValue: T.RawValue(clamping: stored)) ?? fallback
     }
@@ -265,6 +268,7 @@ public enum StoredAccessor {
 
     /// A `RawRepresentable` with an integer raw value, written in the storage width.
     @inlinable
+    @_disfavoredOverload
     public static func write<Stored: BinaryInteger, T: RawRepresentable>(_ value: T) -> Stored where T.RawValue: BinaryInteger {
         Stored(clamping: value.rawValue)
     }

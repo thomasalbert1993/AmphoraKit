@@ -46,6 +46,7 @@ enum AttributeSchema: DatabaseSchema {
             attribute("a_length", .stringAttributeType, optional: true),
             attribute("a_chain", .stringAttributeType, optional: true),
             attribute("a_meter", .integer32AttributeType, defaultValue: 0),
+            attribute("a_priority", .integer64AttributeType, defaultValue: 0),
             transformable("a_tags"),
             transformable("a_kinds"),
             shotReel
@@ -175,6 +176,14 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// The meter, `nil` stored as `0`.
     @Attribute(access: .readWrite) var meter: Meter?
+
+    /// An urgency stored as its integer raw value, in the raw value's own width.
+    enum Priority: Int, Sendable {
+        case low, high
+    }
+
+    /// The urgency.
+    @Attribute(default: Priority.low, access: .readWrite) var priority: Priority
 
     /// A free note.
     @Attribute(access: .readWrite) var note: String?
