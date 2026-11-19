@@ -11,6 +11,8 @@ import CoreData
 /// - `struct Sort: EntitySort` with one static per attribute;
 /// - `struct Assignment: EntityAssignment` with one static per attribute encoding the value to its
 ///   stored form, for `insert`, `update(matching:set:)` and `update(with:)`: `[.order(3)]`;
+/// - `enum Columns` with one static `Column` per attribute, coded ones included, typed by the
+///   storage type, for the code that copies stored values as is: `Note.Columns.kind`;
 /// - the `@NSManaged` storage of every `@Attribute` / `@Relationship` declaration;
 /// - one static `Field` per attribute and to-one relationship, for the expression form of the
 ///   queries: `Note.score > 2 && Note.name == "x"`;
@@ -20,7 +22,7 @@ import CoreData
 /// Attribute names come from `@Stored` declarations when there is one, otherwise from the storage
 /// name with its prefix removed. Types come from `@Stored` declarations when there is one,
 /// otherwise from the storage type. A storage property marked `@StorageOnly` gets nothing; a
-/// nested `Query` or `Sort` the class declares itself is kept.
+/// nested `Query`, `Sort`, `Assignment` or `Columns` the class declares itself is kept.
 ///
 /// - Parameter attributePrefix: The prefix of the attribute storage properties, `"a_"` for `a_text`.
 /// - Parameter relationshipPrefix: The prefix of the relationship storage properties, `"r_"` for `r_folder`.
@@ -28,7 +30,7 @@ import CoreData
 ///   class body: turn it off when the accessors live in extensions, where a generated one would be
 ///   a redeclaration.
 ///
-@attached(member, names: named(Query), named(Sort), named(Assignment), arbitrary)
+@attached(member, names: named(Query), named(Sort), named(Assignment), named(Columns), arbitrary)
 public macro Entity(attributePrefix: String = "", relationshipPrefix: String = "", generatesAccessors: Bool = true) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "EntityMacro")
 
 /// Leaves a storage property out of what `@Entity` generates: no query, no field, no sort, no accessor.
