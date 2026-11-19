@@ -66,6 +66,11 @@ public final class FetchController<T: DatabaseObject>: NSObject, NSFetchedResult
         }
     }
 
+    /// A controller on a typed request.
+    public convenience init(_ request: Request<T>, in database: Database<T.Schema>, notifyChangesOnly: Bool = false, coalescingInterval: TimeInterval = 0.1) {
+        self.init(request.nsFetchRequest, in: database, notifyChangesOnly: notifyChangesOnly, coalescingInterval: coalescingInterval)
+    }
+
     /// Creates a controller for the objects matching every query, sorted.
     public convenience init(matching queries: [T.Query] = [], sortedBy sorts: [T.Sort] = [], in database: Database<T.Schema>, notifyChangesOnly: Bool = false, coalescingInterval: TimeInterval = 0.1) {
         self.init(T.baseFetchRequest(matching: queries, sortedBy: sorts), in: database, notifyChangesOnly: notifyChangesOnly, coalescingInterval: coalescingInterval)

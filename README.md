@@ -172,6 +172,20 @@ let tagged  = try Note.fetch(matching: .tags(.any(.name(.hasPrefix("cam", .caseI
 let custom = try Note.fetch(matching: Note.Query(unsafeFormat: "a_text MATCHES %@", pattern), in: context)
 ```
 
+A `Request` bundles a query, a sort and a limit — the typed `NSFetchRequest`, for the request
+factories of an entity and for `FetchController`:
+
+```swift
+extension Note {
+    static func request(projectId: String) -> Request<Note> {
+        Request(matching: .projectId(projectId), sortedBy: [.createdAt])
+    }
+}
+
+let notes = try Note.fetch(request: Note.request(projectId: id).limited(to: 20), in: context)
+let controller = FetchController(Note.request(projectId: id), in: database)
+```
+
 | Fetch | Failure |
 |---|---|
 | `fetch(matching:sortedBy:limit:in:)`, `first`, `count`, `fetch(id:)` | throws |

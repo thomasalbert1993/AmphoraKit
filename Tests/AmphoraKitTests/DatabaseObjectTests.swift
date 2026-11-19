@@ -66,6 +66,32 @@ struct DatabaseObjectTests {
         #expect(count == 1)
     }
 
+    @Test("a typed Request fetches, counts and drives a FetchController")
+    @MainActor
+    func typedRequest() async throws {
+        let (database, _) = try makeDatabase()
+        try database.performAndSave { context in
+            for (name, score) in [("a", 3.0), ("b", 1.0), ("c", 2.0)] {
+                let item = TestItem(context: context)
+                item.id = name
+                item.name = name
+                item.score = score
+                item.createdAt = .now
+            }
+        }
+        let context = database.viewContext
+        let request = Request<TestItem>(matching: .score(.greaterThan(1)), sortedBy: [.score])
+        #expect(try TestItem.fetch(request: request, in: context).map(\.name) == ["c", "a"])
+        #expect(try TestItem.first(request: request, in: context)?.name == "c")
+        #expect(try TestItem.count(request: request.limited(to: 1), in: context) == 2, "a count ignores the limit")
+        #expect(TestItem.fetchOrEmpty(request: request.sorted(by: [.score.descending]), in: context).map(\.name) == ["a", "c"])
+        #expect(try TestItem.fetch(request: request.filtered(by: .name("a")), in: context).map(\.name) == ["a"])
+        #expect(try TestItem.fetch(request: Request(sortedBy: [.name], limit: 2), in: context).map(\.name) == ["a", "b"])
+
+        let controller = FetchController(request, in: database, coalescingInterval: 0)
+        #expect(controller.results.map(\.name) == ["c", "a"])
+    }
+
     @Test("typed fetches filter, sort, limit and count")
     func typedFetches() async throws {
         let (database, _) = try makeDatabase()
