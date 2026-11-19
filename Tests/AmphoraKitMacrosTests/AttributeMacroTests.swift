@@ -113,9 +113,17 @@ final class AttributeMacroTests: XCTestCase {
                         self.storageKey = storageKey
                         self.storageValue = storageValue
                     }
+                    /// The stored form of `order`, written as is.
+                    static func order(stored value: Int32) -> Assignment {
+                        .init(storageKey: "a_sortOrder", storageValue: value)
+                    }
                     /// The position.
                     static func order(_ value: Int) -> Assignment {
                         .init(storageKey: "a_sortOrder", storageValue: AmphoraKit.StoredAccessor.write(value) as Int32)
+                    }
+                    /// The stored form of `kind`, written as is.
+                    static func kind(stored value: String) -> Assignment {
+                        .init(storageKey: "a_kind", storageValue: value)
                     }
                     static func kind(_ value: Kind) -> Assignment {
                         .init(storageKey: "a_kind", storageValue: AmphoraKit.StoredAccessor.write(value) as String)

@@ -136,6 +136,10 @@ final class EntityMacroTests: XCTestCase {
                     public static func isPinned(_ value: Bool) -> Assignment {
                         .init(storageKey: "a_pinned", storageValue: AmphoraKit.StoredAccessor.write(value) as Bool)
                     }
+                    /// The stored form of `kind`, written as is.
+                    public static func kind(stored value: String) -> Assignment {
+                        .init(storageKey: "a_kind", storageValue: value)
+                    }
                     public static func kind(_ value: Kind) -> Assignment {
                         .init(storageKey: "a_kind", storageValue: AmphoraKit.StoredAccessor.write(value) as String)
                     }

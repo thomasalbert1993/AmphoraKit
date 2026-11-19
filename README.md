@@ -140,6 +140,8 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
   `StorageConvertible` goes by its storage. A unit conversion (milliseconds exposed as seconds)
   stays a hand-written accessor.
 - The default names its type (`Kind.text`): macro arguments are checked before the property is.
+- A column stored in another form also gets a stored-form assignment, `.kind(stored: "drone")`,
+  written as is: a sync recopying the server's value keeps what this version wouldn't decode.
 - A column whose encoding belongs to neither type takes a coder, a `StorageCoder` with `decode`
   and `encode`: `@Attribute(coder: TagChainCoder.self) var tags: [Tag]`, the column typed by the coder's
   `Stored`.

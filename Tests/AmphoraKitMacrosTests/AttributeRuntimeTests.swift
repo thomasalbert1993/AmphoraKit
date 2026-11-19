@@ -173,6 +173,14 @@ struct AttributeRuntimeTests {
         #expect(Shot.Assignment.values([.memo(Shot.Memo(lines: ["c"]))])["a_memo"] as? String == "c")
     }
 
+    @Test("A stored-form assignment writes the value as is, one this version can't decode included")
+    func storedFormAssignment() {
+        #expect(Shot.Assignment.values([.kind(stored: "drone")])["a_kind"] as? String == "drone")
+        #expect(Shot.Assignment.values([.order(stored: 7)])["a_sortOrder"] as? Int32 == 7)
+        #expect(Shot.Assignment.values([.chain(stored: "wide,nope")])["a_chain"] as? String == "wide,nope")
+        #expect(Shot.Assignment.values([.meter(stored: 0)])["a_meter"] as? Int32 == 0)
+    }
+
     @Test("A coded column reads, writes, queries and assigns through its coder")
     func codedColumn() throws {
         let database = try makeDatabase()

@@ -349,6 +349,17 @@ struct EntityModel {
         for property in properties {
             guard case .attribute(let exposedType) = property.kind,
                   !["storageKey", "storageValue"].contains(property.domainName) else { continue }
+            // A column stored in another form also takes its stored value as is: a sync
+            // recopying the server's value keeps what this version wouldn't decode.
+            if property.storageType != exposedType {
+                members += """
+                    /// The stored form of `\(property.domainName)`, written as is.
+                    \(access)static func \(property.domainName)(stored value: \(property.storageType)) -> Assignment {
+                        .init(storageKey: "\(property.storageName)", storageValue: value)
+                    }
+
+                """
+            }
             if let coder = property.coder {
                 let docLines = doc(property.docCommentLines, indent: "    ")
                 members += """
