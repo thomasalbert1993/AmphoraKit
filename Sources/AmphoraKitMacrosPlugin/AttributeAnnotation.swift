@@ -143,6 +143,11 @@ struct AttributeAnnotation {
             if let coder {
                 return "\(coder.trimmedDescription).Stored"
             }
+            // A non-optional collection gets an optional column, read empty for `nil`: a row
+            // written without it (a batch insert) can't trap, and the declaration needs no `?`.
+            if exposedType.optionalWrappedType == nil, exposedType.isCollection {
+                return Self.inferredStorageType(of: exposedType) + "?"
+            }
             return Self.inferredStorageType(of: exposedType)
         case .relationship:
             if let element = exposedType.arrayElementType {

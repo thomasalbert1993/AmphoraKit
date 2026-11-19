@@ -65,6 +65,11 @@ extension TypeSyntax {
         return nil
     }
 
+    /// Whether the type is an array, a set or a dictionary.
+    var isCollection: Bool {
+        arrayElementType != nil || setElementType != nil || self.is(DictionaryTypeSyntax.self)
+    }
+
     /// `Set<X>` → `X`, otherwise `nil`.
     var setElementType: TypeSyntax? {
         guard let identifier = self.as(IdentifierTypeSyntax.self), identifier.name.text == "Set",

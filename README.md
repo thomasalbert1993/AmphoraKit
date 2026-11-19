@@ -123,9 +123,10 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
   another width. `storeAs:` stays for a column whose optionality differs from the property's
   (`storeAs: String?.self, default: Kind.text` over an optional column), an `Int` stored in
   another width and coders. A collection takes its element's column: `[Tag]` is stored as
-  `[Tag.StoredColumn]`, `Set<Kind>?` as `Set<Kind.StoredColumn>?`. A collection over an optional
-  column needs no `default:`: `storeAs: Set<String>?.self` under a `Set<String>` reads empty for
-  `nil`, arrays, sets and dictionaries alike, raw values included (`[String]?` as `[Tag]`).
+  `[Tag.StoredColumn]`, `Set<Kind>?` as `Set<Kind.StoredColumn>?`. A non-optional collection gets an
+  optional column without `storeAs`: `@Attribute var labels: Set<String>` is stored as
+  `Set<String>?` and reads empty for `nil` — arrays, sets and dictionaries alike, raw values
+  included (`[Tag]` as `[String]?`). A row inserted without it can't trap.
 - A payload over an optional column, exposed non-optional, is an `EmptyStorageConvertible`: an
   `init()` for the empty value and `typealias StoredColumn = Data?` on the type, then `@Attribute
   var annotations: Annotations`. `nil` or an unreadable storage reads empty, no `default:`.

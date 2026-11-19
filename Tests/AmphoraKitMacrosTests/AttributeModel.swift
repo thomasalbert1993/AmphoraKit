@@ -161,17 +161,17 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
     /// Framings stored as raw values in a transformable set.
     @Attribute(access: .readWrite) var kinds: Set<Kind>?
 
-    /// Labels in an optional column, empty for `nil` without a `default:`.
-    @Attribute(storeAs: Set<String>?.self, access: .readWrite) var labels: Set<String>
+    /// Labels in an optional column, empty for `nil`, without `storeAs` or `default:`.
+    @Attribute(access: .readWrite) var labels: Set<String>
 
-    /// Extra values in an optional column, empty for `nil` without a `default:`.
-    @Attribute(storeAs: [String: String]?.self, access: .readWrite) var extras: [String: String]
+    /// Extra values in an optional column, empty for `nil`, without `storeAs` or `default:`.
+    @Attribute(access: .readWrite) var extras: [String: String]
 
-    /// Framings as raw values in an optional column, empty for `nil` without a `default:`.
-    @Attribute(storeAs: [String]?.self, access: .readWrite) var framings: [Kind]
+    /// Framings as raw values in an optional column, empty for `nil`, without `storeAs` or `default:`.
+    @Attribute(access: .readWrite) var framings: [Kind]
 
-    /// Angles as raw values in an optional set column, empty for `nil` without a `default:`.
-    @Attribute(storeAs: Set<String>?.self, access: .readWrite) var angles: Set<Kind>
+    /// Angles as raw values in an optional set column, empty for `nil`, without `storeAs` or `default:`.
+    @Attribute(access: .readWrite) var angles: Set<Kind>
 
     /// A framing move, coded as comma-joined raw values, `nil` when empty.
     @Attribute(coder: KindChainCoder.self, access: .readWrite) var chain: [Kind]
