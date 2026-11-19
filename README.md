@@ -245,6 +245,26 @@ struct NoteTests {
 
 `RecordingLogger` captures what the database logs. `spinMainRunLoop()` lets pending merges land.
 
+## AmphoraKit or SwiftData?
+
+The surface is deliberately close to SwiftData: `@Entity`, `@Attribute` and `@Relationship` read
+like `@Model` and its macros. What differs is what lies underneath — AmphoraKit is Core Data, with
+nothing hidden:
+
+| | AmphoraKit | SwiftData |
+|---|---|---|
+| Batch requests | insert, update and delete, typed (`insert([[Assignment]])`, `update(matching:set:)`) | delete only |
+| Predicates | `NSPredicate` underneath: traversals, `SUBQUERY`, raw formats as an escape hatch | `#Predicate`, which refuses what it can't translate |
+| Storage layout | yours: prefixed column names, `storeAs:` widths, raw values, `StorageConvertible`, coders onto an existing column type and format | chosen by the framework; `originalName:` renames, transformers and `Codable` values encode their own way |
+| Model and migrations | an `.xcdatamodeld`, lightweight migrations, existing stores open as they are | the Swift schema, versioned schemas and migration plans |
+| Concurrency | serial background queues by label with priorities, a fresh context per task, a `clear()` safe while tasks run, a coalescing `FetchController` | `ModelActor`, `@Query` |
+| Contexts | typed by schema: a context of one model can't reach another's entities | one `ModelContext` type |
+
+Pick AmphoraKit when an app already has a Core Data store, writes in bulk (a sync engine, an
+importer), needs predicates `#Predicate` can't express, or must keep a column layout another
+system shares. For a new app without those needs, SwiftData is the simpler choice. Both can be
+open in one app: a file importing the two qualifies the macros, `@AmphoraKitMacros.Attribute`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
