@@ -112,6 +112,9 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
 }
 ```
 
+- A to-many relationship reads in no particular order, like the set Core Data keeps;
+  `@Relationship(.sorted)` sorts it by the target's `Comparable` conformance (a compile error
+  without one).
 - The storage name is the property name behind the entity's prefix, unless given. It stays
   `internal` (or `public`/`package` like the property): `#keyPath` and the key-value APIs reach it.
 - Without `storeAs:`, a type Core Data stores as is keeps its type, and any other names

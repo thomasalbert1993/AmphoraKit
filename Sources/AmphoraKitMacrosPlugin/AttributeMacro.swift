@@ -65,8 +65,13 @@ enum StorageExpansion {
             write = "\(coder).encode(newValue)"
         }
         else {
-            read = annotation.defaultValue.map { "AmphoraKit.StoredAccessor.read(\(storage), default: \($0))" }
-                ?? "AmphoraKit.StoredAccessor.read(\(storage))"
+            if annotation.isSorted {
+                read = "AmphoraKit.StoredAccessor.readSorted(\(storage))"
+            }
+            else {
+                read = annotation.defaultValue.map { "AmphoraKit.StoredAccessor.read(\(storage), default: \($0))" }
+                    ?? "AmphoraKit.StoredAccessor.read(\(storage))"
+            }
             write = "AmphoraKit.StoredAccessor.write(newValue)"
         }
         var accessors: [AccessorDeclSyntax] = [

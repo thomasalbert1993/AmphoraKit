@@ -141,6 +141,23 @@ struct AttributeRuntimeTests {
         #expect(Shot.Assignment.values([.priority(.high)])["a_priority"] as? Int == 1)
     }
 
+    @Test("A to-many relationship declared .sorted reads in the target's order; the plain read leaves them be")
+    func toManySorted() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let reel = Reel(context: context)
+        reel.a_id = "r"
+        for (id, order) in [("c", 3), ("a", 1), ("b", 2)] {
+            let shot = Shot(context: context)
+            shot.a_id = id
+            shot.order = order
+            shot.reel = reel
+        }
+        try context.save()
+        #expect(reel.shots.map(\.id) == ["a", "b", "c"])
+        #expect(Set(StoredAccessor.read(reel.r_shots).map(\.id)) == ["a", "b", "c"])
+    }
+
     @Test("A coded column reads, writes, queries and assigns through its coder")
     func codedColumn() throws {
         let database = try makeDatabase()

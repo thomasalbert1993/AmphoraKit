@@ -211,6 +211,14 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
     @Relationship(access: .readWrite) var reel: Reel?
 }
 
+/// Shots compare by their position in the reel: a reel declares its shots `.sorted`.
+extension Shot: Comparable {
+
+    static func < (lhs: Shot, rhs: Shot) -> Bool {
+        lhs.order < rhs.order
+    }
+}
+
 /// A reel of shots.
 @objc(AmphoraKitReel)
 @Entity(attributePrefix: "a_", relationshipPrefix: "r_")
@@ -226,8 +234,8 @@ final class Reel: NSManagedObject, IdentifiableDatabaseObject {
     /// The reel title.
     @Attribute(access: .readWrite) var title: String
 
-    /// The shots, zombies removed.
-    @Relationship var shots: [Shot]
+    /// The shots in reel order, zombies removed.
+    @Relationship(.sorted) var shots: [Shot]
 }
 
 /// Codes a chain of framings as comma-joined raw values, an empty one as `nil`.

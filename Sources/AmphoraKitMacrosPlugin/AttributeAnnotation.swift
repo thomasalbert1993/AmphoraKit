@@ -34,6 +34,9 @@ struct AttributeAnnotation {
     /// Whether a setter is generated.
     let isReadWrite: Bool
 
+    /// Whether a to-many relationship reads sorted (`.sorted`).
+    let isSorted: Bool
+
     /// The documentation of the declaration.
     let docCommentLines: [String]
 
@@ -81,7 +84,10 @@ struct AttributeAnnotation {
         self.role = role
         self.domainName = pattern.identifier.text
         self.exposedType = type.trimmed
-        self.explicitStorageName = arguments.argument(labeled: nil)?.stringLiteralValue
+        // The unlabeled arguments are the order (`.sorted`) and the storage name, in that order.
+        let unlabeled = [arguments.argument(labeled: nil, index: 0), arguments.argument(labeled: nil, index: 1)].compactMap { $0 }
+        self.explicitStorageName = unlabeled.lazy.compactMap(\.stringLiteralValue).first
+        self.isSorted = unlabeled.contains { $0.trimmedDescription.hasSuffix("sorted") }
         self.storeAs = arguments.argument(labeled: "storeAs")?.metatypeArgument
         self.defaultValue = arguments.argument(labeled: "default")?.trimmed
         self.coder = arguments.argument(labeled: "coder")?.metatypeArgument

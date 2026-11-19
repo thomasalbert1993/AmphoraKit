@@ -126,10 +126,17 @@ public macro Attribute<Stored, Coder: StorageCoder>(_ name: String? = nil, store
 /// ```swift
 /// @Relationship var cue: Cue?            // @NSManaged var r_cue: Cue?, nil when it is a zombie
 /// @Relationship var notes: [Note]        // @NSManaged var r_notes: Set<Note>, zombies removed
+/// @Relationship(.sorted) var cues: [Cue]  // sorted by Cue's Comparable conformance
 /// ```
 ///
 /// The storage name is the property name behind the `relationshipPrefix` of the enclosing
-/// `@Entity`, unless given.
+/// `@Entity`, unless given. A to-many relationship reads in no particular order, unless
+/// declared `.sorted`.
 ///
 @attached(accessor)
 public macro Relationship(_ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "RelationshipMacro")
+
+/// Declares a to-many relationship read in order: `.sorted` sorts its objects by the target's
+/// `Comparable` conformance, a compile error when it has none. See `Relationship(_:access:)`.
+@attached(accessor)
+public macro Relationship(_ order: RelationshipOrder, _ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "RelationshipMacro")
