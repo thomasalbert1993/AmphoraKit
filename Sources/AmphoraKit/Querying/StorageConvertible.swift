@@ -60,6 +60,29 @@ extension RawRepresentable {
     }
 }
 
+/// A `StorageConvertible` with an empty value, read for a missing (`nil`) or unreadable storage —
+/// a payload over an optional column, exposed non-optional without a `default:`.
+///
+/// ```swift
+/// extension Annotations: EmptyStorageConvertible {
+///     typealias StoredColumn = Data?            // the column is optional
+///     init() { … }                              // the empty payload
+///     init?(storage: Data) { … }
+///     var storage: Data { … }
+/// }
+///
+/// @Attribute var annotations: Annotations       // @NSManaged var a_annotations: Data?
+/// ```
+///
+/// The alias has to be declared by the type: one provided by this protocol would be ambiguous
+/// with the one `StorageConvertible` provides.
+///
+public protocol EmptyStorageConvertible: StorageConvertible {
+
+    /// The empty value.
+    init()
+}
+
 /// A `StorageConvertible` whose absence is stored as a value rather than as `nil`: an integer
 /// code with `0` for none, in a non-optional scalar column.
 ///

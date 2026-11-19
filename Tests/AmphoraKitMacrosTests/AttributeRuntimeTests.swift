@@ -158,6 +158,22 @@ struct AttributeRuntimeTests {
         #expect(Set(StoredAccessor.read(reel.r_shots).map(\.id)) == ["a", "b", "c"])
     }
 
+    @Test("An EmptyStorageConvertible reads empty for nil, writes and assigns its storage")
+    func emptyStorageColumn() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let shot = Shot(context: context)
+        shot.a_id = "m"
+        #expect(shot.a_memo == nil)
+        #expect(shot.memo == Shot.Memo())
+        shot.memo = Shot.Memo(lines: ["a", "b"])
+        #expect(shot.a_memo == "a|b")
+        try context.save()
+        #expect(Shot.Query.memo(Shot.Memo(lines: ["a", "b"])).nsPredicate.predicateFormat == #"a_memo == "a|b""#)
+        #expect(try Shot.count(matching: .memo(Shot.Memo(lines: ["a", "b"])), in: context) == 1)
+        #expect(Shot.Assignment.values([.memo(Shot.Memo(lines: ["c"]))])["a_memo"] as? String == "c")
+    }
+
     @Test("A coded column reads, writes, queries and assigns through its coder")
     func codedColumn() throws {
         let database = try makeDatabase()

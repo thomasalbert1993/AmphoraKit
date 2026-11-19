@@ -126,6 +126,9 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
   `[Tag.StoredColumn]`, `Set<Kind>?` as `Set<Kind.StoredColumn>?`. A collection over an optional
   column needs no `default:`: `storeAs: Set<String>?.self` under a `Set<String>` reads empty for
   `nil`, arrays, sets and dictionaries alike, raw values included (`[String]?` as `[Tag]`).
+- A payload over an optional column, exposed non-optional, is an `EmptyStorageConvertible`: an
+  `init()` for the empty value and `typealias StoredColumn = Data?` on the type, then `@Attribute
+  var annotations: Annotations`. `nil` or an unreadable storage reads empty, no `default:`.
 - An optional property over a non-optional column whose absence is a value (an integer code, `0`
   for none) is a `NilStorageConvertible`: `static var nilStorage: Int32 { 0 }` and
   `typealias OptionalStoredColumn = Int32` on the type, then `@Attribute var signature:

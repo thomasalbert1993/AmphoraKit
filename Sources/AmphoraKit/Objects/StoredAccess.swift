@@ -99,6 +99,12 @@ public enum StoredAccessor {
         value ?? [:]
     }
 
+    /// An `EmptyStorageConvertible` over an optional storage, empty for `nil` or an unreadable one.
+    @inlinable
+    public static func read<T: EmptyStorageConvertible>(_ storage: T.Storage?) -> T {
+        storage.flatMap(T.init(storage:)) ?? T()
+    }
+
     /// A to-one relationship, `nil` when the object is a zombie.
     @inlinable
     public static func read<T: DatabaseObject>(_ object: T?) -> T? {
@@ -242,6 +248,13 @@ public enum StoredAccessor {
     @inlinable
     public static func write<T: NilStorageConvertible>(_ value: T?) -> T.Storage {
         value?.storage ?? T.nilStorage
+    }
+
+    /// An `EmptyStorageConvertible` written to its optional column: wins over the plain and the
+    /// optional `StorageConvertible` writes, which would both match.
+    @inlinable
+    public static func write<T: EmptyStorageConvertible>(_ value: T) -> T.Storage? {
+        value.storage
     }
 
     /// A to-many relationship written from an array.

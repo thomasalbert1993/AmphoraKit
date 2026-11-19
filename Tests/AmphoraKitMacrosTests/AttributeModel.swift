@@ -47,6 +47,7 @@ enum AttributeSchema: DatabaseSchema {
             attribute("a_chain", .stringAttributeType, optional: true),
             attribute("a_meter", .integer32AttributeType, defaultValue: 0),
             attribute("a_priority", .integer64AttributeType, defaultValue: 0),
+            attribute("a_memo", .stringAttributeType, optional: true),
             transformable("a_tags"),
             transformable("a_kinds"),
             transformable("a_labels"),
@@ -200,6 +201,19 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// The urgency.
     @Attribute(default: Priority.low, access: .readWrite) var priority: Priority
+
+    /// Lines of a memo, stored joined, empty when the column holds none.
+    struct Memo: EmptyStorageConvertible, Equatable, Sendable {
+        typealias StoredColumn = String?
+        var lines: [String]
+        init() { lines = [] }
+        init(lines: [String]) { self.lines = lines }
+        init?(storage: String) { lines = storage.isEmpty ? [] : storage.components(separatedBy: "|") }
+        var storage: String { lines.joined(separator: "|") }
+    }
+
+    /// The memo, empty for an empty column, without a `default:`.
+    @Attribute(access: .readWrite) var memo: Memo
 
     /// A free note.
     @Attribute(access: .readWrite) var note: String?
