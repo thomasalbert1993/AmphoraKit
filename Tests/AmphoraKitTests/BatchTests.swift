@@ -22,6 +22,19 @@ struct BatchTests {
         try await awaitCondition { (try? TestItem.count(in: database.viewContext)) == 1000 }
     }
 
+    @Test("a BETWEEN query runs against the SQLite store, bounds included")
+    func betweenFetchesFromStore() async throws {
+        let (database, _) = try makeDatabase()
+        let count = try await database.enqueueBackgroundTask { context in
+            let rows = (1...6).map { index -> [String: Any] in
+                ["id": "b\(index)", "name": "Row \(index)", "createdAt": Date(), "score": Double(index), "kindRaw": "plain"]
+            }
+            try TestItem.insert(rows, in: context)
+            return try TestItem.count(matching: .score(.between(2, 4)), in: context)
+        }
+        #expect(count == 3)
+    }
+
     @Test("a batch update is reflected on an object already registered in the view context")
     func update() async throws {
         let (database, _) = try makeDatabase()

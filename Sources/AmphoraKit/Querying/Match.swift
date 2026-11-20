@@ -76,8 +76,9 @@ public struct Match<Value> {
                 let constant = PredicateFragment.constant(storageValue(of: value))
                 return PredicateFragment("\(key) \(comparison.rawValue) \(constant.format)", constant.arguments)
             case .between(let lower, let upper):
-                let bounds = [storageValue(of: lower) ?? NSNull(), storageValue(of: upper) ?? NSNull()]
-                return PredicateFragment("\(key) BETWEEN %@", [bounds])
+                // The aggregate form: the SQLite store can't read a `BETWEEN %@` given an array
+                // (it throws while generating the SQL), only memory evaluation could.
+                return PredicateFragment("\(key) BETWEEN {%@, %@}", [storageValue(of: lower) ?? NSNull(), storageValue(of: upper) ?? NSNull()])
             case .membership(let values, let negated):
                 let list = values.map { storageValue(of: $0) ?? NSNull() }
                 return PredicateFragment("\(negated ? "NOT " : "")\(key) IN %@", [list])
