@@ -305,6 +305,42 @@ struct AttributeRuntimeTests {
         #expect(reel.shots.map(\.id) == ["s2"])
     }
 
+    @Test("stored reads a coded or defaulted column as stored and a relationship as Core Data holds it")
+    func storedValues() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let reel = Reel(context: context)
+        reel.update(with: [.id("r1")])
+        let shot = Shot(context: context)
+        shot.update(with: [.id("s1"), .kind(stored: "drone"), .reel(reel)])
+
+        // The domain value falls back on the default, the stored form keeps the unknown value.
+        #expect(shot.kind == .wide)
+        #expect(shot.stored.kind == "drone")
+        #expect(shot.stored.order == 0)
+        #expect(reel.stored.shots == [shot])
+
+        // A related object deleted in the context: the accessor drops it, `stored` still reaches it.
+        context.delete(reel)
+        #expect(shot.reel == nil)
+        #expect(shot.stored.reel === reel)
+    }
+
+    @Test("Private storage: written and read through the assignments and stored only")
+    func privateStorage() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let take = Take(context: context)
+        take.update(with: [.id("t1"), .mood(stored: "joyful")])
+        try context.save()
+
+        #expect(take.mood == .calm)
+        #expect(take.stored.mood == "joyful")
+        let fetched = try #require(try Take.fetch(matching: .id("t1"), in: context).first)
+        #expect(fetched === take)
+        #expect(take.value(forKey: "a_mood") as? String == "joyful")
+    }
+
     @Test("A key path into Columns names a column with its root inferred")
     func columnKeyPaths() {
         func key<Root: DatabaseObject, Stored>(_ keyPath: KeyPath<Root.Columns.Type, Column<Root, Stored>>, of root: Root.Type) -> String {

@@ -164,6 +164,15 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
   APIs take key paths into it, their root inferred: `\.order`;
 - static fields for the expression form and the column names: `Note.order > 2`, `Note.order.key`
   (`"a_sortOrder"`).
+- `note.stored`: the same columns read on one object in their stored form — `note.stored.kind`
+  is the raw `String` (a value this version doesn't decode included), `note.stored.cue` the
+  relationship as Core Data holds it, zombie or not. The read side of `.kind(stored:)`, for the
+  code that copies or compares stored values as is:
+  `copy.update(with: [.kind(stored: note.stored.kind)])`.
+
+`@Entity(…, storageAccess: .private)` makes the generated `@NSManaged` storage private to the
+class body: the compiler then rejects `note.a_kind` anywhere else, reads going through the
+accessors and `stored`, writes through `update(with:)`.
 
 An existing model can keep its `@NSManaged` lines and expose them with `@Stored(\Note.a_kind,
 default: Kind.text) var kind: Kind` instead; `@StorageOnly` leaves a column out, and

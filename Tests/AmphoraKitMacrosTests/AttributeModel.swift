@@ -62,8 +62,16 @@ enum AttributeSchema: DatabaseSchema {
             reelShots
         ]
 
+        let take = NSEntityDescription()
+        take.name = "Take"
+        take.managedObjectClassName = NSStringFromClass(Take.self)
+        take.properties = [
+            attribute("a_id", .stringAttributeType),
+            attribute("a_mood", .stringAttributeType, defaultValue: ""),
+        ]
+
         let model = NSManagedObjectModel()
-        model.entities = [shot, reel]
+        model.entities = [shot, reel, take]
         return model
     }
 
@@ -250,6 +258,27 @@ final class Reel: NSManagedObject, IdentifiableDatabaseObject {
 
     /// The shots in reel order, zombies removed.
     @Relationship(.sorted) var shots: [Shot]
+}
+
+/// A take whose storage is private to its class body: everything else reads `stored`.
+@objc(AmphoraKitTake)
+@Entity(attributePrefix: "a_", relationshipPrefix: "r_", storageAccess: .private)
+final class Take: NSManagedObject, IdentifiableDatabaseObject {
+
+    typealias Schema = AttributeSchema
+
+    static var idKey: String { "a_id" }
+
+    /// How the take felt.
+    enum Mood: String, Sendable {
+        case calm, tense
+    }
+
+    /// The identifier.
+    @Attribute var id: String
+
+    /// The mood, calm when the column holds none or an unknown value.
+    @Attribute(default: Mood.calm) var mood: Mood
 }
 
 /// Codes a chain of framings as comma-joined raw values, an empty one as `nil`.

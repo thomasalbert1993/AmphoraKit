@@ -61,6 +61,11 @@ struct EntityModel {
 
     let typeName: String
     let access: String
+    /// Whether the generated `@NSManaged` storage is `private` (`storageAccess: .private`): only
+    /// the class body reads it, everything else goes through the accessors and `stored`.
+    let isStoragePrivate: Bool
+    /// Whether the class declares a `stored` member itself, which the macro doesn't generate again.
+    private(set) var declaresStored = false
     private(set) var properties: [Property] = []
     /// The nested types the class declares itself, which the macro doesn't generate again.
     private(set) var handWrittenTypes: Set<String> = []
@@ -72,13 +77,15 @@ struct EntityModel {
         "description", "debugDescription", "hash", "hashValue", "superclass", "classForCoder",
         "entity", "objectID", "managedObjectContext", "isInserted", "isUpdated", "isDeleted", "isFault",
         "hasChanges", "hasPersistentChangedValues", "faultingState", "changedValues", "committedValues",
-        "observationInfo", "isProxy", "isZombie", "nilIfZombie", "didUpdate", "entityName", "idKey"
+        "observationInfo", "isProxy", "isZombie", "nilIfZombie", "didUpdate", "entityName", "idKey",
+        "stored"
     ]
 
     /// Class members of `NSObject` / `NSManagedObject` / `DatabaseObject` a generated field would clash with.
     static let reservedStaticNames: Set<String> = [
         "description", "debugDescription", "hash", "superclass", "entity", "fetchRequest",
-        "entityName", "idKey", "Query", "Sort", "AttributeAssignment", "Assignment", "Columns", "Schema", "ID"
+        "entityName", "idKey", "Query", "Sort", "AttributeAssignment", "Assignment", "Columns", "StoredValues",
+        "Schema", "ID"
     ]
 
     init(_ classDecl: ClassDeclSyntax, attribute: AttributeSyntax, context: some MacroExpansionContext) {
@@ -89,6 +96,7 @@ struct EntityModel {
         let attributePrefix = arguments.argument(labeled: "attributePrefix")?.stringLiteralValue ?? ""
         let relationshipPrefix = arguments.argument(labeled: "relationshipPrefix")?.stringLiteralValue ?? ""
         let generatesAccessors = arguments.argument(labeled: "generatesAccessors")?.as(BooleanLiteralExprSyntax.self)?.literal.tokenKind != .keyword(.false)
+        isStoragePrivate = arguments.argument(labeled: "storageAccess")?.as(MemberAccessExprSyntax.self)?.declName.baseName.text == "private"
 
         var storages: [(name: String, type: TypeSyntax, node: TypeSyntax, docCommentLines: [String], role: AttributeAnnotation.Role?)] = []
         var coders: [String: String] = [:]
@@ -154,6 +162,8 @@ struct EntityModel {
                 handWrittenTypes.insert(nested.name.text)
             }
         }
+
+        declaresStored = instanceNames.contains("stored")
 
         // The storage `@Attribute` and `@Relationship` stand for: written here, read like `@NSManaged`.
         for annotation in declared {
@@ -246,7 +256,7 @@ struct EntityModel {
 
     func render() -> [DeclSyntax] {
         var declarations: [DeclSyntax] = managedDeclarations.map { storage in
-            DeclSyntax(stringLiteral: "@NSManaged \(storage.access)var \(storage.name): \(storage.type)")
+            DeclSyntax(stringLiteral: "@NSManaged \(isStoragePrivate ? "private " : storage.access)var \(storage.name): \(storage.type)")
         }
         if !handWrittenTypes.contains("Query") {
             declarations.append(renderQuery())
@@ -262,6 +272,9 @@ struct EntityModel {
         }
         if !handWrittenTypes.contains("Columns") {
             declarations.append(renderColumns())
+        }
+        if !handWrittenTypes.contains("StoredValues") && !declaresStored {
+            declarations.append(contentsOf: renderStoredValues())
         }
         for property in properties where property.generatesField {
             if let field = renderField(property) {
@@ -501,6 +514,48 @@ struct EntityModel {
         \(access)enum Columns {
         \(members)}
         """)
+    }
+
+    /// The read side of the stored-form assignments: `object.stored.kind` is the raw value of a
+    /// coded or defaulted column, `object.stored.cue` the relationship as Core Data holds it, zombie
+    /// or not — the code that copies or compares stored values as is reads these.
+    private func renderStoredValues() -> [DeclSyntax] {
+        var members = ""
+        for property in properties {
+            let defaultDoc: String
+            switch property.kind {
+            case .attribute:
+                defaultDoc = "    /// The stored form of `\(property.domainName)`.\n"
+            case .toOne, .toMany:
+                defaultDoc = "    /// The `\(property.domainName)` relationship as stored, zombies included.\n"
+            }
+            let docLines = property.docCommentLines.isEmpty
+                ? defaultDoc
+                : doc(property.docCommentLines, indent: "    ")
+            members += """
+            \(docLines)    \(access)var \(property.domainName): \(property.storageType) {
+                    object.\(property.storageName)
+                }
+
+            """
+        }
+
+        return [
+            DeclSyntax(stringLiteral: """
+            /// The attributes and relationships of `\(typeName)` as stored, generated by `@Entity`: the raw
+            /// value of a coded or defaulted column, a relationship as Core Data holds it.
+            \(access)struct StoredValues {
+                /// The object read.
+                let object: \(typeName)
+            \(members)}
+            """),
+            DeclSyntax(stringLiteral: """
+            /// The attributes and relationships as stored, for the code that copies or compares them as is.
+            \(access)var stored: StoredValues {
+                StoredValues(object: self)
+            }
+            """),
+        ]
     }
 
     private func renderField(_ property: Property) -> DeclSyntax? {

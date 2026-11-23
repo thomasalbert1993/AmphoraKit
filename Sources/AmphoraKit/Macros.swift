@@ -16,6 +16,9 @@ import CoreData
 ///   `update(with:)` on one object: `[.order(3), .folder(folder)]`;
 /// - `enum Columns` with one static `Column` per attribute and relationship, coded ones included,
 ///   typed by the storage type, for the code that copies stored values as is: `Note.Columns.kind`;
+/// - `struct StoredValues` and `var stored`, the same columns read in their stored form on one
+///   object: `note.stored.kind` is the raw `String`, `note.stored.cue` the relationship as Core
+///   Data holds it, zombie or not;
 /// - the `@NSManaged` storage of every `@Attribute` / `@Relationship` declaration;
 /// - one static `Field` per attribute and to-one relationship, for the expression form of the
 ///   queries: `Note.score > 2 && Note.name == "x"`;
@@ -33,9 +36,22 @@ import CoreData
 /// - Parameter generatesAccessors: Whether to write the domain accessors. The macro only sees the
 ///   class body: turn it off when the accessors live in extensions, where a generated one would be
 ///   a redeclaration.
+/// - Parameter storageAccess: The access of the generated `@NSManaged` storage. `.private` keeps
+///   `a_text` inside the class body: the compiler then rejects any other use of the storage names,
+///   reads going through the accessors and `stored`, writes through `update(with:)`.
 ///
-@attached(member, names: named(Query), named(Sort), named(AttributeAssignment), named(Assignment), named(Columns), arbitrary)
-public macro Entity(attributePrefix: String = "", relationshipPrefix: String = "", generatesAccessors: Bool = true) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "EntityMacro")
+@attached(member, names: named(Query), named(Sort), named(AttributeAssignment), named(Assignment), named(Columns), named(StoredValues), named(stored), arbitrary)
+public macro Entity(attributePrefix: String = "", relationshipPrefix: String = "", generatesAccessors: Bool = true, storageAccess: StorageAccess = .internal) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "EntityMacro")
+
+/// The access of the `@NSManaged` storage `@Entity` writes.
+public enum StorageAccess: Sendable {
+
+    /// The class's own access, the default: the storage names stay usable anywhere in the module.
+    case `internal`
+
+    /// Private to the class body: only the generated members read the storage.
+    case `private`
+}
 
 /// Leaves a storage property out of what `@Entity` generates: no query, no field, no sort, no accessor.
 ///
