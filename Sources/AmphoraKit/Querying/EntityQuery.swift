@@ -55,6 +55,13 @@ extension EntityQuery {
             partial.map { .init(.and($0.expression, next.expression)) }
         }
     }
+
+    /// Combines queries with OR. `nil` for an empty list.
+    public static func any(of queries: [Self]) -> Self? {
+        queries.dropFirst().reduce(queries.first) { partial, next in
+            partial.map { .init(.or($0.expression, next.expression)) }
+        }
+    }
 }
 
 extension EntityQuery where Root: IdentifiableDatabaseObject {

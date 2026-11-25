@@ -96,6 +96,13 @@ struct QueryingTests {
         #expect(format(.all) == "TRUEPREDICATE")
     }
 
+    @Test("any(of:) ORs a list and is nil for none")
+    func anyOf() {
+        #expect(format(TestItem.Query.any(of: [.name("x"), .name("y"), .score(.greaterThan(2))])!) == #"name == "x" OR name == "y" OR score > 2"#)
+        #expect(format(TestItem.Query.any(of: [.name("x")])!) == #"name == "x""#)
+        #expect(TestItem.Query.any(of: []) == nil)
+    }
+
     // MARK: Shared members
 
     @Test("identifiable entities get .id and .ids on their own key")
