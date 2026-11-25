@@ -223,16 +223,3 @@ extension DatabaseSort where Root: IdentifiableDatabaseObject {
     }
 }
 
-
-//-------------------
-// MARK: Former names
-//-------------------
-
-/// The former name of `DatabaseQuery`. It clashed with App Intents' `EntityQuery`: the compiler's
-/// constant extraction took the queries of class entities for intent queries, and crashed.
-@available(*, deprecated, renamed: "DatabaseQuery")
-public typealias EntityQuery = DatabaseQuery
-
-/// The former name of `DatabaseSort`, renamed along with `DatabaseQuery`.
-@available(*, deprecated, renamed: "DatabaseSort")
-public typealias EntitySort = DatabaseSort
