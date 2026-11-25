@@ -223,6 +223,12 @@ a set of entities is a relationship. A type holding `Any` (`[String: Any]`) can'
 gets its `Match` member (`.isNil`), its accessor and its assignments, but no equality member, sort
 or field.
 
+### Operators
+
+Declare an `@Entity` class's operators in an extension — `extension Note: Comparable { static func < … }`:
+declared in the class body, the compiler finds them twice ("multiple matching functions named
+'<'"), a limit of member macros that introduce arbitrary names.
+
 ## Entity hierarchies
 
 ```swift

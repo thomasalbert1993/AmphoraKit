@@ -121,6 +121,23 @@ extension TypeSyntax {
     }
 }
 
+extension VariableDeclSyntax {
+
+    /// The key of a `softDeletion` declaration: `"a_deleted"` in `.flag("a_deleted")` or `.date("a_deleted")`.
+    var softDeletionKey: String? {
+        for call in tokens(viewMode: .sourceAccurate) where call.tokenKind == .identifier("flag") || call.tokenKind == .identifier("date") {
+            var token = call.nextToken(viewMode: .sourceAccurate)
+            guard token?.tokenKind == .leftParen else { continue }
+            token = token?.nextToken(viewMode: .sourceAccurate)
+            guard token?.tokenKind == .stringQuote else { continue }
+            if case .stringSegment(let key)? = token?.nextToken(viewMode: .sourceAccurate)?.tokenKind {
+                return key
+            }
+        }
+        return nil
+    }
+}
+
 extension ExprSyntax {
 
     /// `\.a_kind` or `\Note.a_kind` → `a_kind`.

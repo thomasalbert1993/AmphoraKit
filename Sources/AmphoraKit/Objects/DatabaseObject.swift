@@ -55,7 +55,9 @@ extension DatabaseObject {
 
     /// The Core Data entity name, by convention the class name.
     public static var entityName: String {
-        String(describing: Self.self)
+        // `self`, the dynamic type: called through a metatype (`let type: Entry.Type = GearEntry.self`),
+        // `Self` is the static one and would name the parent entity.
+        String(describing: self)
     }
 
     public func didUpdate() { }

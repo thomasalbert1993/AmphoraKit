@@ -60,6 +60,9 @@ struct EntityModel {
         /// Whether the exposed value can be compared: a type holding `Any` (`[String: Any]`) can't,
         /// and gets no equality member, sort or field.
         let isComparable: Bool
+        /// Whether the column is the entity's soft-deletion mark (`softDeletion`): it gets no query
+        /// member nor field, which would shadow `SoftDeletable`'s `.deleted(_:)`.
+        let isSoftDeletionMark: Bool
     }
 
     /// How the generated types are shaped, from where the entity sits in its hierarchy.
@@ -197,6 +200,15 @@ struct EntityModel {
 
         declaresStored = instanceNames.contains("stored")
 
+        // The soft-deletion mark the class declares (`static var softDeletion: SoftDeletion { .flag("a_deleted") }`).
+        let softDeletionKey: String? = classDecl.memberBlock.members.lazy.compactMap { member -> String? in
+            guard let variable = member.decl.as(VariableDeclSyntax.self),
+                  variable.bindings.contains(where: { $0.pattern.as(IdentifierPatternSyntax.self)?.identifier.text == "softDeletion" }) else {
+                return nil
+            }
+            return variable.softDeletionKey
+        }.first
+
         // The storage `@Attribute` and `@Relationship` stand for: written here, read like `@NSManaged`.
         for annotation in declared {
             guard let name = annotation.storageName(attributePrefix: attributePrefix, relationshipPrefix: relationshipPrefix) else { continue }
@@ -272,6 +284,7 @@ struct EntityModel {
 
             // A coded column has no static field: `Field` carries a key, not a coder.
             let generatesField = coders[storage.name] == nil
+                && storage.name != softDeletionKey
                 && !(annotation?.exposedType ?? storage.type).holdsAny
                 && !staticNames.contains(domainName)
                 && !Self.reservedStaticNames.contains(domainName)
@@ -285,7 +298,8 @@ struct EntityModel {
                 generatesField: generatesField,
                 storageType: storage.type.trimmedDescription,
                 coder: coders[storage.name],
-                isComparable: !(annotation?.exposedType ?? storage.type).holdsAny
+                isComparable: !(annotation?.exposedType ?? storage.type).holdsAny,
+                isSoftDeletionMark: storage.name == softDeletionKey
             ))
         }
     }
@@ -367,7 +381,7 @@ struct EntityModel {
     private func renderQuery() -> DeclSyntax {
         let queryType = memberType("Query")
         var members = ""
-        for property in properties {
+        for property in properties where !property.isSoftDeletionMark {
             let docLines = doc(property.docCommentLines, indent: "    ")
             switch property.kind {
             case .attribute(let exposedType):

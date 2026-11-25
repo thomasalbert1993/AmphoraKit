@@ -73,6 +73,22 @@ struct SharedPrefixTests {
         #expect(cap.cd_brand === brand)
     }
 
+    @Test("a Bool soft-deletion mark gets no query member: deleted(_:) is SoftDeletable's")
+    func softDeletionMarkHasNoMember() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        #expect(try SharedGear.fetch(matching: .deleted(true), in: context).map(\.id) == ["gear-old"])
+        #expect(try SharedGear.count(matching: .deleted(false), in: context) == 2)
+    }
+
+    @Test("a fetch through a metatype fetches the dynamic entity")
+    func fetchThroughMetatype() throws {
+        let database = try makeDatabase()
+        let type: SharedAsset.Type = SharedGear.self
+        #expect(type.entityName == "SharedGear")
+        #expect(type.fetchOrEmpty(in: database.viewContext).count == 2)
+    }
+
     @Test("the base class keeps its identifier, soft deletion applies, creation checks the hierarchy")
     func baseClassAndRules() throws {
         let database = try makeDatabase()
