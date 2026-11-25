@@ -79,6 +79,34 @@ if outcome == .recreatedAfterLoadFailure { resetSyncState() }
 `storage: .ephemeral` gives a SQLite store on `/dev/null`: batch requests work, nothing persists.
 `loadFailurePolicy: .propagate` throws instead of destroying an unreadable store.
 
+### Store options and seed
+
+```swift
+let configuration = DatabaseConfiguration(
+    name: "Catalog",
+    storage: .persistent(url: groupContainer.appendingPathComponent("Catalog.sqlite")),
+    storeOptions: .init(persistentHistoryTracking: true, fileProtection: .completeUntilFirstUserAuthentication),
+    seedStoreURL: Bundle.main.url(forResource: "Catalog", withExtension: "sqlite")
+)
+```
+
+- `storeOptions` — history tracking, remote change notifications, file protection, SQLite pragmas —
+  apply every time the store is opened, recreations by `clear()` and after a load failure included.
+- `seedStoreURL` is copied in place, with its `-wal` and `-shm`, when the store file doesn't exist,
+  and again after every recreation. A failed copy is logged and the store opens empty. Produce
+  the seed with `exportStore(to:)`.
+- `storeDescription` is the description the store opens with, for what needs it:
+
+```swift
+var spotlight: NSCoreDataCoreSpotlightDelegate?
+configuration.willClear = { spotlight?.stopSpotlightIndexing() }
+configuration.didClear = { spotlight?.startSpotlightIndexing() }
+// after setup():
+spotlight = CatalogSpotlightDelegate(forStoreWith: database.storeDescription,
+                                     coordinator: database.persistentContainer.persistentStoreCoordinator)
+spotlight?.startSpotlightIndexing()
+```
+
 ## Entities
 
 With the macros, each column is one line: `@Entity` writes the `@NSManaged` storage, the property
@@ -252,8 +280,20 @@ let count = try await database.enqueueBackgroundTaskAndSave(label: "import") { c
 - Tasks of one label run serially, labels run concurrently, each task gets a fresh context.
 - `priority:` reorders waiting tasks, never a running one.
 - `enqueueBackgroundTask` does not save. `perform` / `performAndSave` run synchronously.
+- `performInBackground` runs now, outside the queues, concurrently with everything: for reads.
+  `clear()` waits for it rather than abandoning it.
 - Batch `insert`, `update(matching:)`, `deleteAll(matching:)` merge their changes into the calling
   context and the view context.
+
+Databases given the same `DatabaseQueues` share their labels, the default one included: their
+writes to related stores never interleave. `clear()` abandons the queued tasks of its own database
+only.
+
+```swift
+let queues = DatabaseQueues()
+let main = Database<MainSchema>(configuration: .init(name: "Main", queues: queues))
+let assets = Database<AssetsSchema>(configuration: .init(name: "Assets", queues: queues))
+```
 
 ## Observing
 
@@ -277,11 +317,21 @@ final class NotesInteractor {
 1. calls `willClear`;
 2. abandons the queued tasks, whose callers get `DatabaseError.storeCleared`;
 3. waits for the running tasks, up to `timeout`, then throws `.clearTimedOut` with the store intact;
-4. resets the view context, destroys and recreates the store;
+4. resets the view context, destroys and recreates the store — with its `storeOptions`, from its
+   `seedStoreURL` when there is one;
 5. calls `didClear` and posts `Database.didClearNotification` synchronously, so every
    `FetchController` has already emitted `[]` when `clear()` returns.
 
 Work enqueued after the call runs on the new store. Late batch merges from the old store are dropped.
+
+## Exporting
+
+```swift
+try database.exportStore(to: exportURL)
+```
+
+Writes what is saved — write-ahead log included — to a single SQLite file, without touching the
+open store: the file to bundle as a `seedStoreURL`. Unsaved changes are not exported.
 
 ## Testing
 

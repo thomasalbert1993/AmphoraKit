@@ -49,11 +49,77 @@ public struct DatabaseConfiguration: Sendable {
         case propagate
     }
 
+    /// The options the store is opened with, every time: at `setup()`, and when it is recreated by
+    /// `clear()` or after a load failure.
+    public struct StoreOptions: Sendable, Hashable {
+
+        /// Records every transaction in the store (`NSPersistentHistoryTrackingKey`), as
+        /// `NSCoreDataCoreSpotlightDelegate` requires.
+        public var persistentHistoryTracking: Bool
+
+        /// Posts `NSPersistentStoreRemoteChange` on every write to the store, from this process or
+        /// another (`NSPersistentStoreRemoteChangeNotificationPostOptionKey`).
+        public var remoteChangeNotifications: Bool
+
+        /// The data protection of the store files (`NSPersistentStoreFileProtectionKey`), `nil` for
+        /// the system default. Ignored on macOS, which has no data protection classes.
+        public var fileProtection: FileProtectionType?
+
+        /// SQLite pragmas, such as `["journal_mode": "DELETE"]` (`NSSQLitePragmasOption`).
+        public var sqlitePragmas: [String: String]
+
+        public init(
+            persistentHistoryTracking: Bool = false,
+            remoteChangeNotifications: Bool = false,
+            fileProtection: FileProtectionType? = nil,
+            sqlitePragmas: [String: String] = [:]
+        ) {
+            self.persistentHistoryTracking = persistentHistoryTracking
+            self.remoteChangeNotifications = remoteChangeNotifications
+            self.fileProtection = fileProtection
+            self.sqlitePragmas = sqlitePragmas
+        }
+
+        /// The options as store-description keys. Only the options that differ from Core Data's
+        /// defaults are set.
+        var dictionary: [String: NSObject] {
+            var options: [String: NSObject] = [:]
+            if persistentHistoryTracking {
+                options[NSPersistentHistoryTrackingKey] = NSNumber(value: true)
+            }
+            if remoteChangeNotifications {
+                options[NSPersistentStoreRemoteChangeNotificationPostOptionKey] = NSNumber(value: true)
+            }
+            #if !os(macOS)
+            if let fileProtection {
+                options[NSPersistentStoreFileProtectionKey] = fileProtection.rawValue as NSString
+            }
+            #endif
+            if !sqlitePragmas.isEmpty {
+                options[NSSQLitePragmasOption] = sqlitePragmas as NSDictionary
+            }
+            return options
+        }
+    }
+
     /// The store file name, without extension.
     public var name: String
 
     /// Where the store lives.
     public var storage: Storage
+
+    /// The options the store is opened with, kept when it is recreated.
+    public var storeOptions: StoreOptions
+
+    /// A pre-filled store copied in place when the store file doesn't exist yet, and again after
+    /// every recreation (`clear()`, load failure), along with its `-wal` and `-shm` files. A copy
+    /// that fails is logged and the store opens empty. Ignored for `.ephemeral` storage.
+    public var seedStoreURL: URL?
+
+    /// The serial queues of the background tasks. Databases given the same instance share their
+    /// labels — the default label included: a task of one never runs alongside a task of the
+    /// other on the same label.
+    public var queues: DatabaseQueues
 
     /// The merge policy of the view context.
     public var viewContextMergePolicy: MergePolicy
@@ -78,6 +144,9 @@ public struct DatabaseConfiguration: Sendable {
     public init(
         name: String,
         storage: Storage = .persistent(),
+        storeOptions: StoreOptions = .init(),
+        seedStoreURL: URL? = nil,
+        queues: DatabaseQueues = .init(),
         viewContextMergePolicy: MergePolicy = .propertyObjectTrump,
         backgroundMergePolicy: MergePolicy = .propertyStoreTrump,
         loadFailurePolicy: LoadFailurePolicy = .destroyAndRecreate,
@@ -85,6 +154,9 @@ public struct DatabaseConfiguration: Sendable {
     ) {
         self.name = name
         self.storage = storage
+        self.storeOptions = storeOptions
+        self.seedStoreURL = seedStoreURL
+        self.queues = queues
         self.viewContextMergePolicy = viewContextMergePolicy
         self.backgroundMergePolicy = backgroundMergePolicy
         self.loadFailurePolicy = loadFailurePolicy

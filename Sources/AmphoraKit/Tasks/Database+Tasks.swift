@@ -37,6 +37,34 @@ extension Database {
     }
 
 
+    /// Runs a task now on a fresh background context, outside the label queues: concurrently
+    /// with every other task, queued or not. Meant for reads — writes belong to a label, so that
+    /// they stay in order.
+    ///
+    /// `clear()` doesn't abandon it but waits for it, like for a running task; one started after
+    /// `clear()` was called throws `DatabaseError.storeCleared`.
+    ///
+    /// - Throws: `DatabaseError.storeCleared`, `notSetUp`, `storeUnavailable`, or whatever the
+    ///   task throws.
+    public func performInBackground<T: Sendable>(
+        qos: DispatchQoS.QoSClass = .userInitiated,
+        _ task: @escaping @Sendable (DatabaseContext<Schema>) throws -> T
+    ) async throws -> T {
+        let epoch = currentStoreEpoch
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: qos).async { [self] in
+                do {
+                    continuation.resume(returning: try run(task, queuedAt: epoch, save: false))
+                }
+                catch {
+                    log(error, for: "background task")
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+
     //-------------------
     // MARK: Synchronous
     //-------------------
@@ -96,10 +124,13 @@ extension Database {
                     }
                 )
                 operation.queuePriority = priority
+                let operationID = ObjectIdentifier(operation)
                 operation.completionBlock = { [self] in
-                    pruneQueueIfIdle(label)
+                    self.state.withLock { _ = $0.operations.removeValue(forKey: operationID) }
+                    configuration.queues.pruneIfIdle(label)
                 }
-                state.queue(for: label).addOperation(operation)
+                state.operations[operationID] = operation
+                configuration.queues.add(operation, label: label)
             }
         }
     }
@@ -115,28 +146,5 @@ extension Database {
                 return value
             }
         }
-    }
-
-    private func pruneQueueIfIdle(_ label: Label) {
-        state.withLock { state in
-            if let queue = state.queues[label], queue.operationCount == 0 {
-                state.queues[label] = nil
-            }
-        }
-    }
-}
-
-extension Database.State {
-
-    /// The serial queue of a label, created on first use.
-    mutating func queue(for label: Database.Label) -> OperationQueue {
-        if let queue = queues[label] {
-            return queue
-        }
-        let queue = OperationQueue()
-        queue.name = "AmphoraKit.\(label)"
-        queue.maxConcurrentOperationCount = 1
-        queues[label] = queue
-        return queue
     }
 }

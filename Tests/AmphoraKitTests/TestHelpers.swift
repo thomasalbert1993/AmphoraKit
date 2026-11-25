@@ -8,11 +8,40 @@ typealias TestDatabase = Database<TestSchema>
 
 /// An open ephemeral database, with a recording logger.
 @MainActor
-func makeDatabase(name: String = "AmphoraKitTest") throws -> (database: TestDatabase, logger: RecordingLogger) {
+func makeDatabase(name: String = "AmphoraKitTest", queues: DatabaseQueues = .init()) throws -> (database: TestDatabase, logger: RecordingLogger) {
     let logger = RecordingLogger()
-    let database = TestDatabase.ephemeral(name: name, logger: logger)
+    let database = TestDatabase.ephemeral(name: name, queues: queues, logger: logger)
     try database.setup()
     return (database, logger)
+}
+
+/// A database on a SQLite file in its own temporary directory, not yet set up — for what
+/// `/dev/null` can't do: seeding, exporting, reopening.
+func makeFileDatabase(
+    in directory: URL = temporaryDirectory(),
+    name: String = "Store",
+    storeOptions: DatabaseConfiguration.StoreOptions = .init(),
+    seedStoreURL: URL? = nil,
+    loadFailurePolicy: DatabaseConfiguration.LoadFailurePolicy = .destroyAndRecreate
+) -> (database: TestDatabase, logger: RecordingLogger, storeURL: URL) {
+    let logger = RecordingLogger()
+    let storeURL = directory.appendingPathComponent("\(name).sqlite")
+    let database = TestDatabase(configuration: DatabaseConfiguration(
+        name: name,
+        storage: .persistent(url: storeURL),
+        storeOptions: storeOptions,
+        seedStoreURL: seedStoreURL,
+        loadFailurePolicy: loadFailurePolicy,
+        logger: logger
+    ))
+    return (database, logger, storeURL)
+}
+
+/// A new, empty temporary directory.
+func temporaryDirectory() -> URL {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("AmphoraKitTests-\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    return directory
 }
 
 extension TestDatabase {

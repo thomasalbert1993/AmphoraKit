@@ -5,8 +5,14 @@ import AmphoraKit
 extension Database {
 
     /// A database on an ephemeral store, not yet set up. Each call opens an independent store.
-    public static func ephemeral(name: String = "AmphoraKitTest", logger: (any DatabaseLogging)? = nil) -> Database<Schema> {
-        Database(configuration: DatabaseConfiguration(name: name, storage: .ephemeral, logger: logger))
+    ///
+    /// - Parameter queues: The background queues, to share with other databases; its own by default.
+    public static func ephemeral(
+        name: String = "AmphoraKitTest",
+        queues: DatabaseQueues = .init(),
+        logger: (any DatabaseLogging)? = nil
+    ) -> Database<Schema> {
+        Database(configuration: DatabaseConfiguration(name: name, storage: .ephemeral, queues: queues, logger: logger))
     }
 
     /// Opens the store on the first call, clears it on the next ones: the one line a test

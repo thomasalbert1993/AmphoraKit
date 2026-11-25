@@ -140,7 +140,156 @@ struct BackgroundTaskTests {
     func pruning() async throws {
         let (database, _) = try makeDatabase()
         try await database.enqueueBackgroundTask(label: "once") { _ in }
-        try await awaitCondition { database.state.withLock { $0.queues["once"] == nil } }
+        try await awaitCondition { !database.configuration.queues.labels.contains("once") }
+        #expect(database.state.withLock { $0.operations.isEmpty })
+    }
+
+
+    // MARK: Shared queues
+
+    @Test("two databases sharing their queues never run a label's tasks alongside each other")
+    func sharedQueuesSerialize() async throws {
+        let queues = DatabaseQueues()
+        let first = try makeDatabase(name: "First", queues: queues).database
+        let second = try makeDatabase(name: "Second", queues: queues).database
+        let tracker = ConcurrencyTracker()
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for index in 0..<20 {
+                let database = index.isMultiple(of: 2) ? first : second
+                group.addTask {
+                    try await database.enqueueBackgroundTask(label: "sync") { _ in tracker.run { Thread.sleep(forTimeInterval: 0.005) } }
+                }
+            }
+            try await group.waitForAll()
+        }
+        #expect(tracker.maximum == 1)
+    }
+
+    @Test("two databases with their own queues run the same label concurrently")
+    func separateQueuesRunConcurrently() async throws {
+        let first = try makeDatabase(name: "First").database
+        let second = try makeDatabase(name: "Second").database
+        let firstStarted = Gate(), secondStarted = Gate()
+
+        async let one: Bool = first.enqueueBackgroundTask(label: "sync") { _ in
+            firstStarted.open()
+            return secondStarted.wait()
+        }
+        async let two: Bool = second.enqueueBackgroundTask(label: "sync") { _ in
+            secondStarted.open()
+            return firstStarted.wait()
+        }
+        #expect(try await one)
+        #expect(try await two)
+    }
+
+    @Test("clearing a database abandons its pending tasks only, those of a database sharing its queues run")
+    func clearOnSharedQueues() async throws {
+        let queues = DatabaseQueues()
+        let first = try makeDatabase(name: "First", queues: queues).database
+        let second = try makeDatabase(name: "Second", queues: queues).database
+        let started = Gate(), release = Gate()
+
+        let blocked = Task.detached {
+            try await second.enqueueBackgroundTask(label: "sync") { _ in
+                started.open()
+                release.wait()
+            }
+        }
+        #expect(started.wait())
+        let firstPending = Task.detached { try await first.enqueueBackgroundTask(label: "sync") { _ in "first" } }
+        let secondPending = Task.detached { try await second.enqueueBackgroundTask(label: "sync") { _ in "second" } }
+        try? await Task.sleep(for: .milliseconds(50))
+
+        // the running task belongs to the other database: nothing to wait for
+        try first.clear(timeout: .milliseconds(500))
+        release.open()
+
+        let firstOutcome = await withTimeout(seconds: 2) { try await firstPending.value }
+        #expect(throws: DatabaseError.storeCleared) { try firstOutcome.get() }
+        #expect(try await secondPending.value == "second")
+        try await blocked.value
+    }
+
+
+    // MARK: Unqueued tasks
+
+    @Test("background performs run concurrently, even while a label is blocked")
+    func performInBackgroundIsConcurrent() async throws {
+        let (database, _) = try makeDatabase()
+        let blockedStarted = Gate(), release = Gate()
+        let blocked = Task.detached {
+            try await database.enqueueBackgroundTask { _ in
+                blockedStarted.open()
+                release.wait()
+            }
+        }
+        #expect(blockedStarted.wait())
+
+        let firstStarted = Gate(), secondStarted = Gate()
+        async let one: Bool = database.performInBackground { _ in
+            firstStarted.open()
+            return secondStarted.wait()
+        }
+        async let two: Bool = database.performInBackground { _ in
+            secondStarted.open()
+            return firstStarted.wait()
+        }
+        #expect(try await one)
+        #expect(try await two)
+
+        release.open()
+        try await blocked.value
+    }
+
+    @Test("a background perform reads the store and returns its value")
+    func performInBackgroundReads() async throws {
+        let (database, _) = try makeDatabase()
+        try await database.seedItems(["a", "b"])
+        let count = try await database.performInBackground { context in try TestItem.count(in: context) }
+        #expect(count == 2)
+    }
+
+    @Test("clear waits for a running background perform, and one started after it uses the new store")
+    func clearWaitsForPerformInBackground() async throws {
+        let (database, _) = try makeDatabase()
+        try await database.seedItems(["a"])
+        let started = Gate(), release = Gate()
+        let running = Task.detached {
+            try await database.performInBackground { context in
+                started.open()
+                release.wait()
+                return try TestItem.count(in: context)
+            }
+        }
+        #expect(started.wait())
+        // the perform holds the store open: clear times out and leaves the store as is
+        #expect(throws: DatabaseError.clearTimedOut) { try database.clear(timeout: .milliseconds(100)) }
+        release.open()
+        #expect(try await running.value == 1)
+
+        try database.clear()
+        #expect(try await database.performInBackground { context in try TestItem.count(in: context) } == 0)
+    }
+}
+
+/// Counts the closures running at once, and the most seen.
+final class ConcurrencyTracker: Sendable {
+
+    private let counts = Mutex((current: 0, maximum: 0))
+
+    var maximum: Int {
+        counts.withLock { $0.maximum }
+    }
+
+    func run(_ work: () -> Void) {
+        counts.withLock { counts in
+            counts.current += 1
+            counts.maximum = max(counts.maximum, counts.current)
+        }
+        work()
+        counts.withLock { $0.current -= 1 }
     }
 }
 

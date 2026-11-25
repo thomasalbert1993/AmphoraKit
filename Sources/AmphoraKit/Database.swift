@@ -48,7 +48,16 @@ public final class Database<Schema: DatabaseSchema>: Sendable {
                 description.url = URL(fileURLWithPath: "/dev/null")
         }
         description.shouldAddStoreAsynchronously = false
+        for (key, value) in configuration.storeOptions.dictionary {
+            description.setOption(value, forKey: key)
+        }
         persistentContainer.persistentStoreDescriptions = [description]
+    }
+
+    /// The description the store is opened with — URL, type and `storeOptions` — kept when it
+    /// is recreated. Hand it to what needs it, such as `NSCoreDataCoreSpotlightDelegate`.
+    public var storeDescription: NSPersistentStoreDescription {
+        persistentContainer.persistentStoreDescriptions[0]
     }
 
 
@@ -65,6 +74,10 @@ public final class Database<Schema: DatabaseSchema>: Sendable {
     public func setup() throws -> SetupOutcome {
         if state.withLock({ $0.isSetup }) {
             return .loaded
+        }
+
+        if let storeURL = seedableStoreURL, !FileManager.default.fileExists(atPath: storeURL.path) {
+            seedStore(at: storeURL)
         }
 
         nonisolated(unsafe) var loadError: (any Error)?
@@ -126,15 +139,16 @@ public final class Database<Schema: DatabaseSchema>: Sendable {
     public func clear(timeout: Duration = .seconds(10)) throws {
         configuration.willClear?()
 
-        let queues: [OperationQueue] = try state.withLock { state in
+        let operations: [Operation] = try state.withLock { state in
             guard state.isSetup else { throw DatabaseError.notSetUp }
             state.storeEpoch += 1
-            defer { state.queues.removeAll() }
-            return Array(state.queues.values)
+            defer { state.operations.removeAll() }
+            return Array(state.operations.values)
         }
         // Pending operations resume their continuation with `storeCleared`; running ones finish.
-        for queue in queues {
-            queue.cancelAllOperations()
+        // Only this database's: the queues may be shared with other databases.
+        for operation in operations {
+            operation.cancel()
         }
 
         clearLock.lock()
@@ -204,13 +218,60 @@ public final class Database<Schema: DatabaseSchema>: Sendable {
 
 
     //-------------------
+    // MARK: Exporting
+    //-------------------
+
+    /// Writes a copy of the store to a single SQLite file — no `-wal` or `-shm` beside it — ready
+    /// to be bundled as a `seedStoreURL`. The open store is left untouched, and the copy includes
+    /// what is saved, the write-ahead log included; unsaved changes of the contexts are not.
+    ///
+    /// - Parameter destinationURL: The file to write, replaced when it exists.
+    /// - Throws: `notSetUp`, `storeUnavailable` (no store, or an `.ephemeral` one), or the copy error.
+    public func exportStore(to destinationURL: URL) throws {
+        guard case .persistent = configuration.storage else {
+            throw DatabaseError.storeUnavailable
+        }
+        try withOpenStore {
+            guard let storeURL = persistentContainer.persistentStoreCoordinator.persistentStores.first?.url else {
+                throw DatabaseError.storeUnavailable
+            }
+            // The store opened read-only by a coordinator of its own, then migrated to the
+            // destination: the open store is never removed nor added back. Migrating, unlike
+            // `replacePersistentStore`, leaves no write-ahead log beside the copy.
+            let coordinator = NSPersistentStoreCoordinator(managedObjectModel: persistentContainer.managedObjectModel)
+            var sourceOptions: [String: Any] = configuration.storeOptions.dictionary
+            sourceOptions[NSReadOnlyPersistentStoreOption] = true
+            let source = try coordinator.addPersistentStore(type: .sqlite, at: storeURL, options: sourceOptions)
+
+            var destinationOptions: [String: Any] = configuration.storeOptions.dictionary
+            destinationOptions[NSSQLitePragmasOption] = configuration.storeOptions.sqlitePragmas.merging(["journal_mode": "DELETE"]) { $1 }
+            try Self.removeStoreFiles(at: destinationURL)
+            try FileManager.default.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let copy = try coordinator.migratePersistentStore(source, to: destinationURL, options: destinationOptions, type: .sqlite)
+            try coordinator.remove(copy)
+        }
+    }
+
+    /// Removes a SQLite store file and its `-wal` and `-shm` files, those that exist.
+    private static func removeStoreFiles(at url: URL) throws {
+        for suffix in ["", "-wal", "-shm"] {
+            let file = URL(fileURLWithPath: url.path + suffix)
+            if FileManager.default.fileExists(atPath: file.path) {
+                try FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+
+
+    //-------------------
     // MARK: Internal
     //-------------------
 
     struct State {
         var isSetup = false
         var storeEpoch = 0
-        var queues: [Label: OperationQueue] = [:]
+        /// The queued operations of this database, until they finish: what `clear()` cancels.
+        var operations: [ObjectIdentifier: Operation] = [:]
     }
 
     let state = Mutex(State())
@@ -259,17 +320,64 @@ public final class Database<Schema: DatabaseSchema>: Sendable {
         context.userInfo[DatabaseReference.userInfoKey] = DatabaseReference(self)
     }
 
+    /// Destroys the store and adds it back from its description, so that its type and options
+    /// survive, seeded again when a seed is configured.
     private func destroyAndRecreateStore() throws {
         let coordinator = persistentContainer.persistentStoreCoordinator
-        guard let storeURL = coordinator.persistentStores.first?.url ?? persistentContainer.persistentStoreDescriptions.first?.url else {
+        let description = storeDescription
+        guard let storeURL = coordinator.persistentStores.first?.url ?? description.url else {
             throw DatabaseError.storeUnavailable
         }
-        try coordinator.destroyPersistentStore(at: storeURL, type: .sqlite)
-        let options: [String: Any] = [
-            NSMigratePersistentStoresAutomaticallyOption: true,
-            NSInferMappingModelAutomaticallyOption: true
-        ]
-        _ = try coordinator.addPersistentStore(type: .sqlite, at: storeURL, options: options)
+        try coordinator.destroyPersistentStore(at: storeURL, type: NSPersistentStore.StoreType(rawValue: description.type))
+
+        if seedableStoreURL != nil {
+            seedStore(at: storeURL)
+        }
+
+        // `shouldAddStoreAsynchronously` is off: the handler runs before `addPersistentStore` returns
+        nonisolated(unsafe) var addError: (any Error)?
+        coordinator.addPersistentStore(with: description) { _, error in
+            addError = error
+        }
+        if let addError {
+            throw addError
+        }
+    }
+
+    /// The store URL when a seed applies to it: a seed is configured and the store is a file.
+    private var seedableStoreURL: URL? {
+        guard configuration.seedStoreURL != nil, case .persistent = configuration.storage else {
+            return nil
+        }
+        return storeDescription.url
+    }
+
+    /// Copies the seed store, with its `-wal` and `-shm` files, to the store URL. A failure is
+    /// logged and leaves no partial copy: the store then opens empty.
+    private func seedStore(at storeURL: URL) {
+        guard let seedURL = configuration.seedStoreURL else { return }
+        let fileManager = FileManager.default
+        let suffixes = ["", "-wal", "-shm"]
+        let destinations = suffixes.map { URL(fileURLWithPath: storeURL.path + $0) }
+        do {
+            try fileManager.createDirectory(at: storeURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            for (suffix, destination) in zip(suffixes, destinations) {
+                let source = URL(fileURLWithPath: seedURL.path + suffix)
+                // the seed's own file is required, its journal files only copied when present
+                guard suffix.isEmpty || fileManager.fileExists(atPath: source.path) else { continue }
+                if fileManager.fileExists(atPath: destination.path) {
+                    try fileManager.removeItem(at: destination)
+                }
+                try fileManager.copyItem(at: source, to: destination)
+            }
+            configuration.logger?.info("Store seeded from \(seedURL.lastPathComponent)")
+        }
+        catch {
+            for destination in destinations {
+                try? fileManager.removeItem(at: destination)
+            }
+            configuration.logger?.error("Failed to seed the store from \(seedURL.path), it opens empty", error)
+        }
     }
 
     /// What a Core Data validation error is about: the entity and identifier of each underlying

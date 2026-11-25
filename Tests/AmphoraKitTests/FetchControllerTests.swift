@@ -24,24 +24,25 @@ struct FetchControllerTests {
     @Test("a burst of changes becomes a leading call and a single trailing call")
     func coalescing() async throws {
         let (database, _) = try makeDatabase()
-        let controller = FetchController<TestItem>(matching: .all, sortedBy: [.name], in: database, coalescingInterval: 0.3)
+        let controller = FetchController<TestItem>(matching: .all, sortedBy: [.name], in: database, coalescingInterval: 1)
         var counts: [Int] = []
         controller.onChange { counts.append($0.count) }
+        // a wide window: the burst must fit in it even when the machine is busy with other tests
         for name in ["a", "b", "c", "d"] {
             try await database.seedItems([name])
             try await Task.sleep(for: .milliseconds(30))
         }
         try await awaitCondition { counts.count >= 1 }
         #expect(counts.first == 1)
-        try await awaitCondition(timeout: .seconds(2)) { counts.count == 2 }
-        try await Task.sleep(for: .milliseconds(400))
+        try await awaitCondition(timeout: .seconds(3)) { counts.count == 2 }
+        try await Task.sleep(for: .milliseconds(1200))
         #expect(counts == [1, 4])
     }
 
     @Test("refetch emits now and cancels the trailing emission")
     func refetch() async throws {
         let (database, _) = try makeDatabase()
-        let controller = FetchController<TestItem>(sortedBy: [.name], in: database, coalescingInterval: 0.3)
+        let controller = FetchController<TestItem>(sortedBy: [.name], in: database, coalescingInterval: 1)
         var counts: [Int] = []
         controller.onChange { counts.append($0.count) }
         try await database.seedItems(["a"])
@@ -50,7 +51,7 @@ struct FetchControllerTests {
         try await Task.sleep(for: .milliseconds(50))
         controller.refetch()
         #expect(counts == [1, 2])
-        try await Task.sleep(for: .milliseconds(400))
+        try await Task.sleep(for: .milliseconds(1200))
         #expect(counts == [1, 2])
     }
 
