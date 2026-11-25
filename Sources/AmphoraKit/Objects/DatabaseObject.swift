@@ -12,19 +12,25 @@ public protocol DatabaseObject: NSManagedObject {
     /// The schema the entity belongs to. Every helper takes a `DatabaseContext<Schema>`.
     associatedtype Schema: DatabaseSchema
 
+    /// The entity at the root of the entity's hierarchy, which the conformance — and so `Query`,
+    /// `Sort` and the assignments — belongs to: the entity itself, unless it inherits from
+    /// another entity. A non-final class can conform to the protocol because its requirements are
+    /// tied to the root rather than to `Self`, which a subclass would not equal.
+    associatedtype RootEntity: DatabaseObject = Self
+
     /// The typed predicate of the entity, resolved by implicit member: `.name("x")`, `.score(.greaterThan(2))`.
-    associatedtype Query: EntityQuery where Query.Root == Self
+    associatedtype Query: EntityQuery where Query.Root == RootEntity
 
     /// The typed sort descriptor of the entity: `.name`, `.createdAt.descending`.
-    associatedtype Sort: EntitySort where Sort.Root == Self
+    associatedtype Sort: EntitySort where Sort.Root == RootEntity
 
     /// The typed attribute values of the entity, for batch requests too: `.name("x")`, `.order(3)`.
     /// `@Entity` generates it; entities without it write values by key.
-    associatedtype AttributeAssignment: EntityAttributeAssignment = UntypedAttributeAssignment<Self> where AttributeAssignment.Root == Self
+    associatedtype AttributeAssignment: EntityAttributeAssignment = UntypedAttributeAssignment<Self> where AttributeAssignment.Root == RootEntity
 
     /// The typed values of the entity written on one object, attributes and relationships:
     /// `.name("x")`, `.reel(reel)`. `@Entity` generates it.
-    associatedtype Assignment: EntityAssignment = UntypedAssignment<Self> where Assignment.Root == Self
+    associatedtype Assignment: EntityAssignment = UntypedAssignment<Self> where Assignment.Root == RootEntity
 
     /// The attributes and relationships of the entity in their stored form, one `Column` per
     /// member: `Note.Columns.text`. `@Entity` generates it; the generic APIs take key paths into it

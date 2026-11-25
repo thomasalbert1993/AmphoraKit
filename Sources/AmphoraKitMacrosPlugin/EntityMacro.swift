@@ -59,8 +59,20 @@ struct EntityModel {
         let coder: String?
     }
 
+    /// How the generated types are shaped, from where the entity sits in its hierarchy.
+    enum Shape: Equatable {
+        /// A final entity inheriting from `NSManagedObject`: structs.
+        case finalRoot
+        /// A non-final entity at the root of a hierarchy: classes its sub-entities' types inherit from.
+        case openRoot
+        /// An entity inheriting from another entity: classes inheriting from the parent's.
+        case subEntity(parent: String)
+    }
+
     let typeName: String
     let access: String
+    let shape: Shape
+    let isFinal: Bool
     /// Whether the generated `@NSManaged` storage is `private` (`storageAccess: .private`): only
     /// the class body reads it, everything else goes through the accessors and `stored`.
     let isStoragePrivate: Bool
@@ -97,6 +109,19 @@ struct EntityModel {
         let relationshipPrefix = arguments.argument(labeled: "relationshipPrefix")?.stringLiteralValue ?? ""
         let generatesAccessors = arguments.argument(labeled: "generatesAccessors")?.as(BooleanLiteralExprSyntax.self)?.literal.tokenKind != .keyword(.false)
         isStoragePrivate = arguments.argument(labeled: "storageAccess")?.as(MemberAccessExprSyntax.self)?.declName.baseName.text == "private"
+
+        // The superclass comes first in the inheritance clause, and an entity always has one:
+        // anything but `NSManagedObject` there is the parent entity, unless `root: true` says the
+        // superclass is a plain base class.
+        isFinal = classDecl.modifiers.contains { $0.name.tokenKind == .keyword(.final) }
+        let isDeclaredRoot = arguments.argument(labeled: "root")?.as(BooleanLiteralExprSyntax.self)?.literal.tokenKind == .keyword(.true)
+        let superclass = classDecl.inheritanceClause?.inheritedTypes.first?.type.trimmedDescription
+        if let superclass, !isDeclaredRoot, !["NSManagedObject", "CoreData.NSManagedObject"].contains(superclass) {
+            shape = .subEntity(parent: superclass)
+        }
+        else {
+            shape = isFinal ? .finalRoot : .openRoot
+        }
 
         var storages: [(name: String, type: TypeSyntax, node: TypeSyntax, docCommentLines: [String], role: AttributeAnnotation.Role?)] = []
         var coders: [String: String] = [:]
@@ -291,7 +316,37 @@ struct EntityModel {
         lines.map { "\(indent)\($0)\n" }.joined()
     }
 
+    /// The access of a generated class: `open` for a public entity, so that the sub-entities of
+    /// another module inherit it.
+    private var classAccess: String {
+        access == "public " ? "open " : access
+    }
+
+    /// The type the generated static members return: the type's own name in a struct, `Self` in
+    /// a class, so that a sub-entity's query built from a parent's member is the sub-entity's.
+    private func memberType(_ name: String) -> String {
+        shape == .finalRoot ? name : "Self"
+    }
+
+    /// The opening of a generated type up to its members: a struct for a final entity, a class
+    /// for an open root, a class inheriting the parent's for a sub-entity, which declares no
+    /// storage of its own.
+    ///
+    /// - Parameter storage: The stored members and initializer, given the initializer's
+    ///   modifier (`required ` in a class).
+    private func typeOpening(_ name: String, conformance: String, storage: (_ initModifier: String) -> String) -> String {
+        switch shape {
+        case .finalRoot:
+            return "\(access)struct \(name): \(conformance) {\n\(storage(""))"
+        case .openRoot:
+            return "\(classAccess)class \(name): \(conformance) {\n\(storage("required "))"
+        case .subEntity(let parent):
+            return "\(isFinal ? "\(access)final " : classAccess)class \(name): \(parent).\(name) {\n"
+        }
+    }
+
     private func renderQuery() -> DeclSyntax {
+        let queryType = memberType("Query")
         var members = ""
         for property in properties {
             let docLines = doc(property.docCommentLines, indent: "    ")
@@ -299,27 +354,27 @@ struct EntityModel {
             case .attribute(let exposedType):
                 let encodedMatch = property.coder.map { "match.encoded(by: \($0).self)" } ?? "match"
                 members += """
-                \(docLines)    \(access)static func \(property.domainName)(_ match: AmphoraKit.Match<\(exposedType)>) -> Query {
+                \(docLines)    \(access)static func \(property.domainName)(_ match: AmphoraKit.Match<\(exposedType)>) -> \(queryType) {
                         .init(.match("\(property.storageName)", \(encodedMatch)))
                     }
-                \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> Query {
+                \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> \(queryType) {
                         .\(property.domainName)(.equal(value))
                     }
 
                 """
             case .toOne(let target, let storageType):
                 members += """
-                \(docLines)    \(access)static func \(property.domainName)(_ match: AmphoraKit.Match<\(storageType)>) -> Query {
+                \(docLines)    \(access)static func \(property.domainName)(_ match: AmphoraKit.Match<\(storageType)>) -> \(queryType) {
                         .init(.match("\(property.storageName)", match))
                     }
-                \(docLines)    \(access)static func \(property.domainName)(_ query: \(target).Query) -> Query {
+                \(docLines)    \(access)static func \(property.domainName)(_ query: \(target).Query) -> \(queryType) {
                         .init(.relation("\(property.storageName)", query.expression))
                     }
 
                 """
             case .toMany(let element):
                 members += """
-                \(docLines)    \(access)static func \(property.domainName)(_ match: AmphoraKit.CollectionMatch<\(element)>) -> Query {
+                \(docLines)    \(access)static func \(property.domainName)(_ match: AmphoraKit.CollectionMatch<\(element)>) -> \(queryType) {
                         .init(.collection("\(property.storageName)", match))
                     }
 
@@ -329,12 +384,13 @@ struct EntityModel {
 
         return DeclSyntax(stringLiteral: """
         /// The typed predicate of `\(typeName)`, generated by `@Entity`.
-        \(access)struct Query: AmphoraKit.EntityQuery {
+        \(typeOpening("Query", conformance: "AmphoraKit.EntityQuery") { initModifier in """
             \(access)let expression: AmphoraKit.QueryExpression<\(typeName)>
-            \(access)init(_ expression: AmphoraKit.QueryExpression<\(typeName)>) {
+            \(access)\(initModifier)init(_ expression: AmphoraKit.QueryExpression<\(typeName)>) {
                 self.expression = expression
             }
-        \(members)}
+
+        """ })\(members)}
         """)
     }
 
@@ -345,7 +401,7 @@ struct EntityModel {
             guard case .attribute = property.kind, property.coder == nil else { continue }
             let docLines = doc(property.docCommentLines, indent: "    ")
             members += """
-            \(docLines)    \(access)static var \(property.domainName): Sort {
+            \(docLines)    \(access)static var \(property.domainName): \(memberType("Sort")) {
                     .init(key: "\(property.storageName)")
                 }
 
@@ -354,16 +410,18 @@ struct EntityModel {
 
         return DeclSyntax(stringLiteral: """
         /// The typed sort descriptor of `\(typeName)`, generated by `@Entity`.
-        \(access)struct Sort: AmphoraKit.EntitySort {
+        \(typeOpening("Sort", conformance: "AmphoraKit.EntitySort") { initModifier in """
             \(access)let expression: AmphoraKit.SortExpression<\(typeName)>
-            \(access)init(_ expression: AmphoraKit.SortExpression<\(typeName)>) {
+            \(access)\(initModifier)init(_ expression: AmphoraKit.SortExpression<\(typeName)>) {
                 self.expression = expression
             }
-        \(members)}
+
+        """ })\(members)}
         """)
     }
 
     private func renderAttributeAssignment() -> DeclSyntax {
+        let attributeType = memberType("AttributeAssignment")
         var members = ""
         for property in properties {
             guard case .attribute(let exposedType) = property.kind,
@@ -373,7 +431,7 @@ struct EntityModel {
             if property.storageType != exposedType {
                 members += """
                     /// The stored form of `\(property.domainName)`, written as is.
-                    \(access)static func \(property.domainName)(stored value: \(property.storageType)) -> AttributeAssignment {
+                    \(access)static func \(property.domainName)(stored value: \(property.storageType)) -> \(attributeType) {
                         .init(storageKey: "\(property.storageName)", storageValue: value)
                     }
 
@@ -382,7 +440,7 @@ struct EntityModel {
             if let coder = property.coder {
                 let docLines = doc(property.docCommentLines, indent: "    ")
                 members += """
-                \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> AttributeAssignment {
+                \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> \(attributeType) {
                         .init(storageKey: "\(property.storageName)", storageValue: \(coder).encode(value))
                     }
 
@@ -404,7 +462,7 @@ struct EntityModel {
                 : property.storageType
             let docLines = doc(property.docCommentLines, indent: "    ")
             members += """
-            \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> AttributeAssignment {
+            \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> \(attributeType) {
                     .init(storageKey: "\(property.storageName)", storageValue: AmphoraKit.StoredAccessor.write(value) as \(coercion))
                 }
 
@@ -413,19 +471,21 @@ struct EntityModel {
 
         return DeclSyntax(stringLiteral: """
         /// The typed attribute values of `\(typeName)`, for batch requests too, generated by `@Entity`.
-        \(access)struct AttributeAssignment: AmphoraKit.EntityAttributeAssignment {
+        \(typeOpening("AttributeAssignment", conformance: "AmphoraKit.EntityAttributeAssignment") { initModifier in """
             \(access)typealias Root = \(typeName)
             \(access)let storageKey: String
             \(access)let storageValue: Any?
-            \(access)init(storageKey: String, storageValue: Any?) {
+            \(access)\(initModifier)init(storageKey: String, storageValue: Any?) {
                 self.storageKey = storageKey
                 self.storageValue = storageValue
             }
-        \(members)}
+
+        """ })\(members)}
         """)
     }
 
     private func renderAssignment() -> DeclSyntax {
+        let assignmentType = memberType("Assignment")
         var members = ""
         for property in properties {
             let docLines = doc(property.docCommentLines, indent: "    ")
@@ -437,7 +497,7 @@ struct EntityModel {
                 if property.storageType != exposedType {
                     members += """
                         /// The stored form of `\(property.domainName)`, written as is.
-                        \(access)static func \(property.domainName)(stored value: \(property.storageType)) -> Assignment {
+                        \(access)static func \(property.domainName)(stored value: \(property.storageType)) -> \(assignmentType) {
                             .init(AttributeAssignment.\(property.domainName)(stored: value))
                         }
 
@@ -450,21 +510,21 @@ struct EntityModel {
                     continue
                 }
                 members += """
-                \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> Assignment {
+                \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> \(assignmentType) {
                         .init(AttributeAssignment.\(property.domainName)(value))
                     }
 
                 """
             case .toOne(_, let storageType):
                 members += """
-                \(docLines)    \(access)static func \(property.domainName)(_ target: \(storageType)) -> Assignment {
+                \(docLines)    \(access)static func \(property.domainName)(_ target: \(storageType)) -> \(assignmentType) {
                         .init(storageKey: "\(key)", storageValue: target)
                     }
 
                 """
             case .toMany(let element):
                 members += """
-                \(docLines)    \(access)static func \(property.domainName)(_ targets: [\(element)]) -> Assignment {
+                \(docLines)    \(access)static func \(property.domainName)(_ targets: [\(element)]) -> \(assignmentType) {
                         .init(storageKey: "\(key)", storageValue: Set(targets))
                     }
 
@@ -474,15 +534,16 @@ struct EntityModel {
 
         return DeclSyntax(stringLiteral: """
         /// The typed attribute and relationship values of `\(typeName)` written on one object, generated by `@Entity`.
-        \(access)struct Assignment: AmphoraKit.EntityAssignment {
+        \(typeOpening("Assignment", conformance: "AmphoraKit.EntityAssignment") { initModifier in """
             \(access)typealias Root = \(typeName)
             \(access)let storageKey: String
             \(access)let storageValue: Any?
-            \(access)init(storageKey: String, storageValue: Any?) {
+            \(access)\(initModifier)init(storageKey: String, storageValue: Any?) {
                 self.storageKey = storageKey
                 self.storageValue = storageValue
             }
-        \(members)}
+
+        """ })\(members)}
         """)
     }
 
@@ -532,30 +593,72 @@ struct EntityModel {
             let docLines = property.docCommentLines.isEmpty
                 ? defaultDoc
                 : doc(property.docCommentLines, indent: "    ")
+            // A sub-entity's values read its own storage on the object its parent holds.
+            let object = if case .subEntity = shape { "unsafeDowncast(object, to: \(typeName).self)" } else { "object" }
             members += """
             \(docLines)    \(access)var \(property.domainName): \(property.storageType) {
-                    object.\(property.storageName)
+                    \(object).\(property.storageName)
                 }
 
             """
         }
 
-        return [
-            DeclSyntax(stringLiteral: """
-            /// The attributes and relationships of `\(typeName)` as stored, generated by `@Entity`: the raw
-            /// value of a coded or defaulted column, a relationship as Core Data holds it.
-            \(access)struct StoredValues {
-                /// The object read.
-                let object: \(typeName)
-            \(members)}
-            """),
-            DeclSyntax(stringLiteral: """
-            /// The attributes and relationships as stored, for the code that copies or compares them as is.
-            \(access)var stored: StoredValues {
-                StoredValues(object: self)
-            }
-            """),
-        ]
+        let storedDoc = "/// The attributes and relationships as stored, for the code that copies or compares them as is."
+        switch shape {
+        case .finalRoot:
+            return [
+                DeclSyntax(stringLiteral: """
+                /// The attributes and relationships of `\(typeName)` as stored, generated by `@Entity`: the raw
+                /// value of a coded or defaulted column, a relationship as Core Data holds it.
+                \(access)struct StoredValues {
+                    /// The object read.
+                    let object: \(typeName)
+                \(members)}
+                """),
+                DeclSyntax(stringLiteral: """
+                \(storedDoc)
+                \(access)var stored: StoredValues {
+                    StoredValues(object: self)
+                }
+                """),
+            ]
+        case .openRoot:
+            // A class, so that a sub-entity's values inherit these and `stored` is overridden
+            // with the sub-entity's.
+            return [
+                DeclSyntax(stringLiteral: """
+                /// The attributes and relationships of `\(typeName)` as stored, generated by `@Entity`: the raw
+                /// value of a coded or defaulted column, a relationship as Core Data holds it.
+                \(classAccess)class StoredValues {
+                    /// The object read.
+                    \(access)let object: \(typeName)
+                    \(access)init(object: \(typeName)) {
+                        self.object = object
+                    }
+                \(members)}
+                """),
+                DeclSyntax(stringLiteral: """
+                \(storedDoc)
+                \(access)var stored: StoredValues {
+                    StoredValues(object: self)
+                }
+                """),
+            ]
+        case .subEntity(let parent):
+            return [
+                DeclSyntax(stringLiteral: """
+                /// The attributes and relationships of `\(typeName)` as stored, its parent's included, generated by `@Entity`.
+                \(isFinal ? "\(access)final " : classAccess)class StoredValues: \(parent).StoredValues {
+                \(members)}
+                """),
+                DeclSyntax(stringLiteral: """
+                \(storedDoc)
+                \(access)override var stored: StoredValues {
+                    StoredValues(object: self)
+                }
+                """),
+            ]
+        }
     }
 
     private func renderField(_ property: Property) -> DeclSyntax? {

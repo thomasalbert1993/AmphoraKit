@@ -15,7 +15,11 @@ import CoreData
 /// }
 /// ```
 ///
-public protocol IdentifiableDatabaseObject: DatabaseObject, Identifiable where ID: Hashable {
+/// In a hierarchy, the identifier belongs to the root entity: its queries (`.id(_:)`) are the
+/// root's, shared by every sub-entity.
+///
+public protocol IdentifiableDatabaseObject: DatabaseObject, Identifiable
+where ID: Hashable, RootEntity: IdentifiableDatabaseObject, RootEntity.ID == ID {
 
     /// The Core Data attribute storing the identifier.
     static var idKey: String { get }

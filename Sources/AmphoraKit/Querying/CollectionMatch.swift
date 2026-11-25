@@ -10,8 +10,8 @@ import Foundation
 public struct CollectionMatch<Element: DatabaseObject> {
 
     enum Kind {
-        case any(QueryExpression<Element>)
-        case none(QueryExpression<Element>)
+        case any(QueryExpression<Element.RootEntity>)
+        case none(QueryExpression<Element.RootEntity>)
         case count(Match<Int>)
     }
 
@@ -54,7 +54,7 @@ public struct CollectionMatch<Element: DatabaseObject> {
         }
     }
 
-    private func subquery(_ key: String, _ expression: QueryExpression<Element>, suffix: String) -> PredicateFragment {
+    private func subquery(_ key: String, _ expression: QueryExpression<Element.RootEntity>, suffix: String) -> PredicateFragment {
         let inner = expression.fragment(prefix: "$x.")
         return PredicateFragment("SUBQUERY(\(key), $x, \(inner.format)).@count \(suffix)", inner.arguments)
     }
