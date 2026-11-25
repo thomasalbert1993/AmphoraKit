@@ -6,9 +6,16 @@ import AmphoraKitTestSupport
 
 typealias TestDatabase = Database<TestSchema>
 
+/// Core Data's multi-threading assertions, on for every test: a context touched off its queue traps.
+/// Read when Core Data first loads, so set before any database is created.
+let enablesConcurrencyAssertions: Void = {
+    UserDefaults.standard.set(1, forKey: "com.apple.CoreData.ConcurrencyDebug")
+}()
+
 /// An open ephemeral database, with a recording logger.
 @MainActor
 func makeDatabase(name: String = "AmphoraKitTest", queues: DatabaseQueues = .init()) throws -> (database: TestDatabase, logger: RecordingLogger) {
+    _ = enablesConcurrencyAssertions
     let logger = RecordingLogger()
     let database = TestDatabase.ephemeral(name: name, queues: queues, logger: logger)
     try database.setup()

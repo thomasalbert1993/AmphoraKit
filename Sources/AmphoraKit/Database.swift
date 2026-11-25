@@ -288,8 +288,11 @@ public final class Database<Schema: DatabaseSchema>: Sendable {
     /// A fresh background context, tagged with its database.
     func newBackgroundContext() -> DatabaseContext<Schema> {
         let context = persistentContainer.newBackgroundContext()
-        context.mergePolicy = configuration.backgroundMergePolicy.nsMergePolicy
-        tag(context)
+        // A private-queue context: configured on its own queue, as Core Data requires.
+        context.performAndWait {
+            context.mergePolicy = configuration.backgroundMergePolicy.nsMergePolicy
+            tag(context)
+        }
         return DatabaseContext(context)
     }
 

@@ -31,7 +31,9 @@ public struct DatabaseContext<Schema: DatabaseSchema>: Sendable, Equatable {
 
     /// The database that created the context, `nil` for a context created elsewhere.
     public var database: Database<Schema>? {
-        (nsContext.userInfo[DatabaseBox.userInfoKey] as? DatabaseBox)?.database as? Database<Schema>
+        // Read on the context's queue, from wherever it's asked (`isInViewContext`…).
+        let box = nsContext.performAndWait { nsContext.userInfo[DatabaseBox.userInfoKey] as? DatabaseBox }
+        return box?.database as? Database<Schema>
     }
 
     /// Reads any property of the underlying context: `context.hasChanges`, `context.deletedObjects`…
