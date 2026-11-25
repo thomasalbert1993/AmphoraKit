@@ -118,6 +118,80 @@ struct HierarchyTests {
         #expect(throws: DatabaseError.self) { try HierarchyBrand.fetch(id: "lens-pl", in: database.viewContext) }
     }
 
+    // MARK: Entry points
+
+    @Test("a sub-entity's entry points take its own queries and sorts by implicit member")
+    func implicitMembers() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        #expect(try HierarchyLens.fetch(matching: [.mount("PL"), .provider("rental")], in: context).map(\.id) == ["lens-pl"])
+        #expect(try HierarchyLens.fetch(matching: .brand(.label("ZEISS")), sortedBy: [.mount.descending], in: context).map(\.a_mount) == ["PL", "LPL"])
+        #expect(try HierarchyLens.first(matching: .name(.hasPrefix("Lens")), sortedBy: [.name], in: context)?.a_mount == "EF")
+        #expect(try HierarchyLens.count(matching: .provider("rental"), in: context) == 2)
+        #expect(HierarchyLens.fetchOrEmpty(matching: [.id("lens-ef")], in: context).count == 1)
+        #expect(HierarchyLens.fetchFirstOrNil(matching: .mount("LPL"), in: context)?.id == "lens-lpl")
+        #expect(try HierarchyDynamicAsset.count(matching: .provider("rental"), in: context) == 3)
+        #expect(try HierarchyBrand.fetch(matching: .label("ZEISS"), in: context).count == 1)
+    }
+
+    @Test("empty, default and shared members resolve without ambiguity")
+    func noAmbiguity() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        #expect(try HierarchyLens.fetch(in: context).count == 3)
+        #expect(try HierarchyLens.fetch(matching: [], in: context).count == 3)
+        #expect(try HierarchyLens.fetch(matching: .all, in: context).count == 3)
+        #expect(try HierarchyLens.fetch(matching: .id("lens-pl"), in: context).count == 1)
+        #expect(try HierarchyLens.count(in: context) == 3)
+        #expect(try HierarchyDynamicAsset.fetch(in: context).count == 4)
+        #expect(try HierarchyAsset.fetch(in: context).count == 5)
+    }
+
+    @Test("generic code over the root sees the sub-entity through the root's types")
+    func genericCode() throws {
+        func names<T: DatabaseObject>(_ type: T.Type, in context: DatabaseContext<T.Schema>) throws -> Int {
+            try T.fetch(matching: [], in: context).count
+        }
+        let database = try makeDatabase()
+        #expect(try names(HierarchyLens.self, in: database.viewContext) == 3)
+    }
+
+    @Test("a sub-entity's request feeds fetch(request:) and a FetchController")
+    func requests() async throws {
+        let database = try makeDatabase()
+        let request = HierarchyLens.request(matching: [.provider("rental")], sortedBy: [.mount])
+        #expect(try HierarchyLens.fetch(request: request, in: database.viewContext).map(\.a_mount) == ["LPL", "PL"])
+
+        let controller = FetchController(request, in: database, coalescingInterval: 0)
+        #expect(controller.results.map(\.a_mount) == ["LPL", "PL"])
+        let lenses: [HierarchyLens] = controller.results
+        #expect(lenses.count == 2)
+    }
+
+    @Test("a sub-entity's batch requests and object updates take its own assignments")
+    func batchAndUpdates() async throws {
+        let database = try makeDatabase()
+        try await database.enqueueBackgroundTaskAndSave { context in
+            try HierarchyLens.update(matching: .mount("EF"), set: [.provider("rental"), .name("Lens EF II")], in: context)
+            try HierarchyLens.insert([[.id("lens-rf"), .mount("RF"), .provider("own"), .name("Lens RF")]], in: context)
+        }
+        try await awaitCondition { (try? HierarchyLens.count(in: database.viewContext)) == 4 }
+        let context = database.viewContext
+        #expect(try HierarchyLens.count(matching: .provider("rental"), in: context) == 3)
+        #expect(try HierarchyLens.fetch(id: "lens-rf", in: context).a_mount == "RF")
+
+        let lens = try HierarchyLens.fetch(id: "lens-rf", in: context)
+        lens.update(with: [.mount("Z"), .name("Lens Z")])
+        #expect(lens.a_mount == "Z" && lens.a_name == "Lens Z")
+
+        try await database.enqueueBackgroundTaskAndSave { context in
+            try HierarchyLens.deleteAll(matching: .provider("own"), in: context)
+        }
+        // lens-ef became a rental above: only lens-rf is left to delete
+        try await awaitCondition { (try? HierarchyLens.count(in: database.viewContext)) == 3 }
+        #expect(try HierarchyAsset.count(in: database.viewContext) == 5)
+    }
+
     @Test("a sub-entity's columns and fields name its own storage")
     func columnsAndFields() {
         #expect(HierarchyLens.Columns.mount.key == "a_mount")
