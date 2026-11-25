@@ -9,7 +9,7 @@ extension DatabaseObject {
     /// A fetch request on the entity, filtered, sorted and limited.
     public static func baseFetchRequest(matching queries: [Query] = [], sortedBy sorts: [Sort] = [], limit: Int? = nil) -> NSFetchRequest<Self> {
         let request = NSFetchRequest<Self>(entityName: entityName)
-        request.predicate = Query.all(of: queries)?.nsPredicate
+        request.predicate = filteredPredicate(Query.all(of: queries))
         request.sortDescriptors = sorts.map(\.nsSortDescriptor)
         if let limit {
             request.fetchLimit = limit

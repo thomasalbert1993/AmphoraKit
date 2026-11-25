@@ -21,8 +21,14 @@ public struct QueryExpression<Root> {
 
     let node: Node
 
-    init(_ node: Node) {
+    /// Whether the expression asks for the soft-deleted objects too (`withDeleted()`,
+    /// `deleted(_:)`), which turns off the filter of `SoftDeletable` entities. Kept by `&&`, `||`
+    /// and `!`; not carried through a relationship, the filter being the queried entity's.
+    let includesSoftDeleted: Bool
+
+    init(_ node: Node, includesSoftDeleted: Bool = false) {
         self.node = node
+        self.includesSoftDeleted = includesSoftDeleted
     }
 
 
@@ -52,15 +58,25 @@ public struct QueryExpression<Root> {
     }
 
     public static func and(_ lhs: Self, _ rhs: Self) -> Self {
-        .init(.and([lhs.node, rhs.node]))
+        .init(.and([lhs.node, rhs.node]), includesSoftDeleted: lhs.includesSoftDeleted || rhs.includesSoftDeleted)
     }
 
     public static func or(_ lhs: Self, _ rhs: Self) -> Self {
-        .init(.or([lhs.node, rhs.node]))
+        .init(.or([lhs.node, rhs.node]), includesSoftDeleted: lhs.includesSoftDeleted || rhs.includesSoftDeleted)
     }
 
     public static func not(_ expression: Self) -> Self {
-        .init(.not(expression.node))
+        .init(.not(expression.node), includesSoftDeleted: expression.includesSoftDeleted)
+    }
+
+    /// The same expression, asking for the soft-deleted objects too.
+    func includingSoftDeleted() -> Self {
+        .init(node, includesSoftDeleted: true)
+    }
+
+    /// Whether a condition of the expression is on the attribute at `key`, outside relationships.
+    func mentions(key: String) -> Bool {
+        node.mentions(key: key)
     }
 
     /// A hand-written predicate, for what the typed members can't express. Keys are the caller's
@@ -95,6 +111,19 @@ public struct QueryExpression<Root> {
 }
 
 extension QueryExpression.Node {
+
+    func mentions(key: String) -> Bool {
+        switch self {
+            case .leaf(let leafKey, _):
+                return leafKey == key
+            case .and(let nodes), .or(let nodes):
+                return nodes.contains { $0.mentions(key: key) }
+            case .not(let node):
+                return node.mentions(key: key)
+            case .all, .raw:
+                return false
+        }
+    }
 
     func fragment(prefix: String) -> PredicateFragment {
         switch self {

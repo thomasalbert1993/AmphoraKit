@@ -90,7 +90,11 @@ struct EntityModel {
         "entity", "objectID", "managedObjectContext", "isInserted", "isUpdated", "isDeleted", "isFault",
         "hasChanges", "hasPersistentChangedValues", "faultingState", "changedValues", "committedValues",
         "observationInfo", "isProxy", "isZombie", "nilIfZombie", "didUpdate", "entityName", "idKey",
-        "stored"
+        "stored",
+        // the Objective-C names of `NSManagedObject`'s Boolean properties, visible from Swift too
+        "deleted", "inserted", "updated", "fault",
+        // `DatabaseObject` and `SoftDeletable` members
+        "didCreate", "isSoftDeleted", "nilIfSoftDeleted"
     ]
 
     /// Class members of `NSObject` / `NSManagedObject` / `DatabaseObject` a generated field would clash with.

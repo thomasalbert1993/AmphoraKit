@@ -63,7 +63,7 @@ public struct Request<Root: DatabaseObject> {
     /// The Core Data request, a new one at each call.
     public var nsFetchRequest: NSFetchRequest<Root> {
         let request = NSFetchRequest<Root>(entityName: Root.entityName)
-        request.predicate = query?.nsPredicate
+        request.predicate = Root.filteredPredicate(query)
         request.sortDescriptors = sorts.map(\.nsSortDescriptor)
         if let limit {
             request.fetchLimit = limit

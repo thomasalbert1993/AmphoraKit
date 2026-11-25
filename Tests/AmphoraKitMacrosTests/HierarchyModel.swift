@@ -18,7 +18,9 @@ enum HierarchySchema: DatabaseSchema {
     private static func makeModel() -> NSManagedObjectModel {
         let asset = entity("HierarchyAsset", HierarchyAsset.self, abstract: true, [
             attribute("a_id", .stringAttributeType),
-            attribute("a_name", .stringAttributeType, defaultValue: "")
+            attribute("a_name", .stringAttributeType, defaultValue: ""),
+            // optional and without default: a nil flag must read as not deleted
+            attribute("a_deleted", .booleanAttributeType)
         ])
         let dynamicAsset = entity("HierarchyDynamicAsset", HierarchyDynamicAsset.self, [
             attribute("a_provider", .stringAttributeType, defaultValue: "")
@@ -74,17 +76,21 @@ enum HierarchySchema: DatabaseSchema {
     }
 }
 
-/// The abstract root: a non-final entity, its generated types are classes.
+/// The abstract root: a non-final entity, its generated types are classes. Soft-deletable, which
+/// its sub-entities inherit.
 @objc(AmphoraKitHierarchyAsset)
 @Entity(attributePrefix: "a_", relationshipPrefix: "r_")
-class HierarchyAsset: NSManagedObject, IdentifiableDatabaseObject {
+class HierarchyAsset: NSManagedObject, IdentifiableDatabaseObject, SoftDeletable {
 
     typealias Schema = HierarchySchema
 
     static var idKey: String { "a_id" }
 
+    static var softDeletedKey: String { "a_deleted" }
+
     @NSManaged var a_id: String
     @NSManaged var a_name: String
+    @NSManaged var a_deleted: NSNumber?
 }
 
 /// A sub-entity that has sub-entities of its own.

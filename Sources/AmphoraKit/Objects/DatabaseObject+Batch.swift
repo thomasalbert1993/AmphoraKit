@@ -46,7 +46,7 @@ extension DatabaseObject {
     public static func update(matching query: Query, _ values: [String: Any], in context: DatabaseContext<Schema>) throws {
         guard !values.isEmpty else { return }
         let request = NSBatchUpdateRequest(entityName: entityName)
-        request.predicate = query.nsPredicate
+        request.predicate = filteredPredicate(query)
         request.propertiesToUpdate = values
         request.resultType = .updatedObjectIDsResultType
         let result = try execute(request, in: context, "batch update") as? NSBatchUpdateResult
