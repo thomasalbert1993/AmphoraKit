@@ -1,5 +1,9 @@
 import CoreData
 
+/// `NSFetchRequest`, named through AmphoraKit: the code `@Entity` generates spells its types with
+/// the module, so that it compiles in a file that doesn't import Core Data.
+public typealias EntityFetchRequest<Result: NSFetchRequestResult> = NSFetchRequest<Result>
+
 /// A typed fetch: which objects (`query`), in what order (`sorts`), how many (`limit`). The typed
 /// counterpart of an `NSFetchRequest`, built from an entity's generated `Query` and `Sort`.
 ///
