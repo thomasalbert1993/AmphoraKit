@@ -19,4 +19,10 @@ public enum DatabaseError: Error, Equatable, Sendable {
 
     /// `fetch(id:)` found no object with the identifier.
     case notFound(entity: String, id: String)
+
+    /// `create(id:in:)` found an object with the identifier already.
+    case alreadyExists(entity: String, id: String)
+
+    /// The entity is abstract: only its sub-entities have objects.
+    case abstractEntity(String)
 }

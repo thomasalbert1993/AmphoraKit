@@ -126,7 +126,7 @@ struct HierarchyTests {
         let context = database.viewContext
         #expect(try HierarchyLens.fetch(matching: [.mount("PL"), .provider("rental")], in: context).map(\.id) == ["lens-pl"])
         #expect(try HierarchyLens.fetch(matching: .brand(.label("ZEISS")), sortedBy: [.mount.descending], in: context).map(\.a_mount) == ["PL", "LPL"])
-        #expect(try HierarchyLens.first(matching: .name(.hasPrefix("Lens")), sortedBy: [.name], in: context)?.a_mount == "EF")
+        #expect(try HierarchyLens.fetchFirst(matching: .name(.hasPrefix("Lens")), sortedBy: [.name], in: context)?.a_mount == "EF")
         #expect(try HierarchyLens.count(matching: .provider("rental"), in: context) == 2)
         #expect(HierarchyLens.fetchOrEmpty(matching: [.id("lens-ef")], in: context).count == 1)
         #expect(HierarchyLens.fetchFirstOrNil(matching: .mount("LPL"), in: context)?.id == "lens-lpl")
@@ -190,6 +190,27 @@ struct HierarchyTests {
         // lens-ef became a rental above: only lens-rf is left to delete
         try await awaitCondition { (try? HierarchyLens.count(in: database.viewContext)) == 3 }
         #expect(try HierarchyAsset.count(in: database.viewContext) == 5)
+    }
+
+    @Test("an abstract entity can't be created, its sub-entities can, and exists takes their own queries")
+    func creationInAHierarchy() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        #expect(throws: DatabaseError.abstractEntity("HierarchyAsset")) { try HierarchyAsset.create(id: "x", in: context) }
+        #expect(throws: DatabaseError.abstractEntity("HierarchyAsset")) { try HierarchyAsset.fetchOrCreate(id: "x", in: context) }
+        // an existing object is still found through the abstract root
+        #expect(try HierarchyAsset.fetchOrCreate(id: "lens-pl", in: context) is HierarchyLens)
+
+        let lens = try HierarchyLens.create(id: "lens-new", in: context)
+        #expect(lens.a_id == "lens-new")
+        #expect(throws: DatabaseError.alreadyExists(entity: "HierarchyLens", id: "lens-pl")) { try HierarchyLens.create(id: "lens-pl", in: context) }
+        // the identifier is the root's: a sibling can't take it, nor return it as its own
+        #expect(throws: DatabaseError.alreadyExists(entity: "HierarchyBrand", id: "lens-pl")) { try HierarchyBrand.create(id: "lens-pl", in: context) }
+        #expect(throws: DatabaseError.alreadyExists(entity: "HierarchyLens", id: "lens-pl")) { try HierarchyBrand.fetchOrCreate(id: "lens-pl", in: context) }
+
+        #expect(try HierarchyLens.exists(matching: [.mount("PL"), .provider("rental")], in: context))
+        #expect(try !HierarchyLens.exists(matching: .mount("XX"), in: context))
+        #expect(try HierarchyLens.fetchFirst(id: "lens-ef", in: context)?.a_mount == "EF")
     }
 
     @Test("a sub-entity's columns and fields name its own storage")

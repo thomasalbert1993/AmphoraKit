@@ -82,7 +82,7 @@ struct DatabaseObjectTests {
         let context = database.viewContext
         let request = Request<TestItem>(matching: .score(.greaterThan(1)), sortedBy: [.score])
         #expect(try TestItem.fetch(request: request, in: context).map(\.name) == ["c", "a"])
-        #expect(try TestItem.first(request: request, in: context)?.name == "c")
+        #expect(try TestItem.fetchFirst(request: request, in: context)?.name == "c")
         #expect(try TestItem.count(request: request.limited(to: 1), in: context) == 2, "a count ignores the limit")
         #expect(TestItem.fetchOrEmpty(request: request.sorted(by: [.score.descending]), in: context).map(\.name) == ["a", "c"])
         #expect(try TestItem.fetch(request: request.filtered(by: .name("a")), in: context).map(\.name) == ["a"])
@@ -107,7 +107,7 @@ struct DatabaseObjectTests {
         #expect(try TestItem.fetch(sortedBy: [.name], in: context).map(\.name) == ["a", "b", "c"])
         #expect(try TestItem.fetch(matching: .score(.greaterThan(0)), sortedBy: [.score.descending], in: context).map(\.name) == ["c", "a"])
         #expect(try TestItem.fetch(matching: [.kind(.plain), .name(.in(["a", "b"]))], in: context).count == 2)
-        #expect(try TestItem.first(matching: .kind(.archived), in: context)?.name == "c")
+        #expect(try TestItem.fetchFirst(matching: .kind(.archived), in: context)?.name == "c")
         #expect(try TestItem.fetch(sortedBy: [.score], limit: 1, in: context).map(\.name) == ["b"])
         #expect(try TestItem.count(matching: TestItem.kind == .plain, in: context) == 2)
         #expect(TestItem.fetchOrEmpty(matching: .name("a"), in: context).count == 1)

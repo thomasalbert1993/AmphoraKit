@@ -43,13 +43,13 @@ extension DatabaseObject {
     }
 
     /// The first object matching every query, in the sort order.
-    public static func first(matching queries: [Query] = [], sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) throws -> Self? {
+    public static func fetchFirst(matching queries: [Query] = [], sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) throws -> Self? {
         try fetch(matching: queries, sortedBy: sorts, limit: 1, in: context).first
     }
 
     /// The first object matching the query, in the sort order.
-    public static func first(matching query: Query, sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) throws -> Self? {
-        try first(matching: [query], sortedBy: sorts, in: context)
+    public static func fetchFirst(matching query: Query, sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) throws -> Self? {
+        try fetchFirst(matching: [query], sortedBy: sorts, in: context)
     }
 
     /// How many objects match every query.
@@ -60,6 +60,16 @@ extension DatabaseObject {
     /// How many objects match the query.
     public static func count(matching query: Query, in context: DatabaseContext<Schema>) throws -> Int {
         try count(matching: [query], in: context)
+    }
+
+    /// Whether an object matches every query, counting no further than one.
+    public static func exists(matching queries: [Query] = [], in context: DatabaseContext<Schema>) throws -> Bool {
+        try context.count(for: baseFetchRequest(matching: queries, limit: 1)) > 0
+    }
+
+    /// Whether an object matches the query, counting no further than one.
+    public static func exists(matching query: Query, in context: DatabaseContext<Schema>) throws -> Bool {
+        try exists(matching: [query], in: context)
     }
 
 
@@ -84,7 +94,7 @@ extension DatabaseObject {
 
     /// The first object matching every query, `nil` when there is none or the fetch fails (logged).
     public static func fetchFirstOrNil(matching queries: [Query] = [], sortedBy sorts: [Sort] = [], in context: DatabaseContext<Schema>) -> Self? {
-        logged(in: context, "fetch first \(entityName)") { try first(matching: queries, sortedBy: sorts, in: context) } ?? nil
+        logged(in: context, "fetch first \(entityName)") { try fetchFirst(matching: queries, sortedBy: sorts, in: context) } ?? nil
     }
 
     /// The first object matching the query, `nil` when there is none or the fetch fails (logged).

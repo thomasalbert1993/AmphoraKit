@@ -80,13 +80,18 @@ extension DatabaseObject {
     }
 
     /// The first object a typed request returns, in its order.
-    public static func first(request: Request<Self>, in context: DatabaseContext<Schema>) throws -> Self? {
+    public static func fetchFirst(request: Request<Self>, in context: DatabaseContext<Schema>) throws -> Self? {
         try fetch(request: request.limited(to: 1), in: context).first
     }
 
     /// How many objects a typed request returns, its limit aside.
     public static func count(request: Request<Self>, in context: DatabaseContext<Schema>) throws -> Int {
         try context.count(for: request.limited(to: nil).nsFetchRequest)
+    }
+
+    /// Whether a typed request returns an object, counting no further than one.
+    public static func exists(request: Request<Self>, in context: DatabaseContext<Schema>) throws -> Bool {
+        try context.count(for: request.limited(to: 1).nsFetchRequest) > 0
     }
 
     /// The objects a typed request returns, an empty array when the fetch fails (logged).

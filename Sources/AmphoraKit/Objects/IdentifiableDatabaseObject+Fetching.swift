@@ -6,10 +6,20 @@ extension IdentifiableDatabaseObject {
     ///
     /// - Throws: `DatabaseError.notFound` when there is none.
     public static func fetch(id: ID, in context: DatabaseContext<Schema>) throws -> Self {
-        guard let object = try first(matching: .id(id), in: context) else {
+        guard let object = try fetchFirst(matching: .id(id), in: context) else {
             throw DatabaseError.notFound(entity: entityName, id: String(describing: id))
         }
         return object
+    }
+
+    /// The object with the identifier, `nil` when there is none.
+    public static func fetchFirst(id: ID, in context: DatabaseContext<Schema>) throws -> Self? {
+        try fetchFirst(matching: .id(id), in: context)
+    }
+
+    /// The object with the identifier, `nil` when there is none or the fetch fails (logged).
+    public static func fetchFirstOrNil(id: ID, in context: DatabaseContext<Schema>) -> Self? {
+        fetchFirstOrNil(matching: .id(id), in: context)
     }
 
     /// The objects with the identifiers, in no particular order.
@@ -18,13 +28,60 @@ extension IdentifiableDatabaseObject {
         return try fetch(matching: .ids(ids), in: context)
     }
 
-    /// The object with the identifier, inserted with just that identifier when there is none.
+    /// The objects with the identifiers, in no particular order, an empty array when the fetch
+    /// fails (logged).
+    public static func fetchOrEmpty(ids: [ID], in context: DatabaseContext<Schema>) -> [Self] {
+        guard !ids.isEmpty else { return [] }
+        return fetchOrEmpty(matching: .ids(ids), in: context)
+    }
+
+    /// Inserts an object with the identifier, then calls `didCreate()`.
+    ///
+    /// The identifier belongs to the root entity: an object of another sub-entity holding it
+    /// counts as existing.
+    ///
+    /// - Throws: `DatabaseError.alreadyExists` when an object has the identifier,
+    ///   `DatabaseError.abstractEntity` when the entity is abstract, or the fetch error.
+    @discardableResult
+    public static func create(id: ID, in context: DatabaseContext<Schema>) throws -> Self {
+        if try objectInHierarchy(id: id, in: context) != nil {
+            throw DatabaseError.alreadyExists(entity: entityName, id: String(describing: id))
+        }
+        return try insert(id: id, in: context)
+    }
+
+    /// The object with the identifier, inserted with just that identifier — then `didCreate()` —
+    /// when there is none.
+    ///
+    /// - Throws: `DatabaseError.alreadyExists` when an object of another sub-entity holds the
+    ///   identifier, `DatabaseError.abstractEntity` when it would insert into an abstract entity,
+    ///   or the fetch error.
     public static func fetchOrCreate(id: ID, in context: DatabaseContext<Schema>) throws -> Self {
-        if let existing = try first(matching: .id(id), in: context) {
-            return existing
+        if let existing = try objectInHierarchy(id: id, in: context) {
+            guard let object = existing as? Self else {
+                throw DatabaseError.alreadyExists(entity: existing.entity.name ?? entityName, id: String(describing: id))
+            }
+            return object
+        }
+        return try insert(id: id, in: context)
+    }
+
+    /// The object holding the identifier anywhere in the entity's hierarchy, the root's
+    /// sub-entities included.
+    private static func objectInHierarchy(id: ID, in context: DatabaseContext<Schema>) throws -> NSManagedObject? {
+        let request = NSFetchRequest<NSManagedObject>(entityName: RootEntity.entityName)
+        request.predicate = RootEntity.Query.id(id).nsPredicate
+        request.fetchLimit = 1
+        return try context.nsContext.fetch(request).first
+    }
+
+    private static func insert(id: ID, in context: DatabaseContext<Schema>) throws -> Self {
+        guard !isAbstract(in: context) else {
+            throw DatabaseError.abstractEntity(entityName)
         }
         let object = Self(context: context)
         object.setValue(id, forKey: idKey)
+        object.didCreate()
         return object
     }
 

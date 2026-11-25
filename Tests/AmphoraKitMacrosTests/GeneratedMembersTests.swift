@@ -41,7 +41,7 @@ struct GeneratedMembersTests {
         let folder = try seed(in: database)
         let context = database.viewContext
 
-        let b = try #require(try MacroItem.first(matching: .name("b"), in: context))
+        let b = try #require(try MacroItem.fetchFirst(matching: .name("b"), in: context))
         #expect(b.id == "i1")
         #expect(b.name == "b")
         #expect(b.isPinned)
@@ -50,7 +50,7 @@ struct GeneratedMembersTests {
         #expect(b.folder === folder)
         #expect(folder.items.count == 2)
 
-        let a = try #require(try MacroItem.first(matching: .name("a"), in: context))
+        let a = try #require(try MacroItem.fetchFirst(matching: .name("a"), in: context))
         #expect(a.position == TestItem.Position(bar: 1, beat: 1))
         #expect(a.a_position == "1-1")
 

@@ -40,6 +40,10 @@ public protocol DatabaseObject: NSManagedObject {
     /// Called after the object's values were rewritten in bulk (`update(with:)`), so that
     /// derived caches can be dropped. Does nothing by default.
     func didUpdate()
+
+    /// Called once a new object was inserted by `create(id:in:)` or `fetchOrCreate(id:in:)`, its
+    /// identifier set — unlike `awakeFromInsert()`, which runs before. Does nothing by default.
+    func didCreate()
 }
 
 extension DatabaseObject {
@@ -55,6 +59,13 @@ extension DatabaseObject {
     }
 
     public func didUpdate() { }
+
+    public func didCreate() { }
+
+    /// Whether the entity is abstract in the context's model: only its sub-entities have objects.
+    public static func isAbstract(in context: DatabaseContext<Schema>) -> Bool {
+        NSEntityDescription.entity(forEntityName: entityName, in: context.nsContext)?.isAbstract ?? false
+    }
 }
 
 /// The `Columns` of an entity that declares none.

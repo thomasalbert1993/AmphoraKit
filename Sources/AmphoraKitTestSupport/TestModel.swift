@@ -103,6 +103,17 @@ public final class TestItem: NSManagedObject, IdentifiableDatabaseObject {
         didUpdateCount += 1
     }
 
+    /// How many times `didCreate()` ran, for the tests of `create(id:)` and `fetchOrCreate(id:)`.
+    public private(set) var didCreateCount = 0
+
+    /// The identifier `didCreate()` saw, set before it runs.
+    public private(set) var idSeenByDidCreate: String?
+
+    public func didCreate() {
+        didCreateCount += 1
+        idSeenByDidCreate = id
+    }
+
     /// A stored enum.
     public enum Kind: String, CaseIterable, Sendable {
         case plain, urgent, archived
