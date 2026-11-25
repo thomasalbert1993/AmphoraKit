@@ -81,11 +81,52 @@ struct SoftDeleteTests {
         #expect(try HierarchyLens.fetch(id: "lens-a", in: context).a_mount == "EF")
     }
 
+    // MARK: By date
+
+    /// Three memos: `memo-old` deleted long ago, `memo-new` deleted a minute ago, `memo-live` live.
+    private func makeMemos() throws -> Database<HierarchySchema> {
+        let database = Database<HierarchySchema>.ephemeral(name: "SoftDeleteByDate")
+        try database.setup()
+        let context = database.viewContext.nsContext
+        for (id, deletedAt) in [("memo-old", Date(timeIntervalSinceNow: -90 * 86_400) as Date?), ("memo-new", Date(timeIntervalSinceNow: -60)), ("memo-live", nil)] {
+            let memo = HierarchyMemo(context: context)
+            memo.a_id = id
+            memo.a_deletedAt = deletedAt
+        }
+        try context.save()
+        return database
+    }
+
+    @Test("an entity soft-deleted by date is filtered the same way")
+    func byDate() throws {
+        let database = try makeMemos()
+        let context = database.viewContext
+        #expect(try HierarchyMemo.fetch(in: context).map(\.id) == ["memo-live"])
+        #expect(try HierarchyMemo.count(matching: .deleted(true), in: context) == 2)
+        #expect(try HierarchyMemo.count(matching: .deleted(false), in: context) == 1)
+        #expect(try HierarchyMemo.count(matching: HierarchyMemo.Query.all.withDeleted(), in: context) == 3)
+        #expect(try HierarchyMemo.fetch(id: "memo-old", in: context).isSoftDeleted)
+    }
+
+    @Test("a deletion date is read, and queried by range")
+    func deletionDates() throws {
+        let database = try makeMemos()
+        let context = database.viewContext
+        let purgeable = try HierarchyMemo.fetch(matching: .deleted(.lessThan(Date(timeIntervalSinceNow: -30 * 86_400))), in: context)
+        #expect(purgeable.map(\.id) == ["memo-old"])
+        #expect(try HierarchyMemo.fetch(id: "memo-new", in: context).softDeletionDate != nil)
+        #expect(try HierarchyMemo.fetch(id: "memo-live", in: context).softDeletionDate == nil)
+        // a flag records no date: a range matches nothing
+        #expect(try HierarchyLens.count(matching: .deleted(.lessThan(.now)), in: context) == 0)
+        #expect(try HierarchyLens.count(in: context) == 0)
+    }
+
     @Test("the helpers read the flag")
     func helpers() throws {
         let database = try makeDatabase()
         let lenses = try HierarchyLens.fetch(matching: HierarchyLens.Query.all.withDeleted(), sortedBy: [.id], in: database.viewContext)
         #expect(lenses.map(\.isSoftDeleted) == [false, true, false])
+        #expect(lenses.allSatisfy { $0.softDeletionDate == nil })
         #expect(lenses.compactMap(\.nilIfSoftDeleted).map(\.id) == ["lens-a", "lens-c"])
         #expect(lenses.removingSoftDeleted().map(\.id) == ["lens-a", "lens-c"])
     }

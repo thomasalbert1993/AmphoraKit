@@ -52,8 +52,14 @@ enum HierarchySchema: DatabaseSchema {
         asset.subentities = [dynamicAsset, brand]
         dynamicAsset.subentities = [lens]
 
+        let memo = entity("HierarchyMemo", HierarchyMemo.self, [
+            attribute("a_id", .stringAttributeType),
+            attribute("a_text", .stringAttributeType, defaultValue: ""),
+            attribute("a_deletedAt", .dateAttributeType)
+        ])
+
         let model = NSManagedObjectModel()
-        model.entities = [asset, dynamicAsset, lens, brand]
+        model.entities = [asset, dynamicAsset, lens, brand, memo]
         return model
     }
 
@@ -86,7 +92,7 @@ class HierarchyAsset: NSManagedObject, IdentifiableDatabaseObject, SoftDeletable
 
     static var idKey: String { "a_id" }
 
-    static var softDeletedKey: String { "a_deleted" }
+    static var softDeletion: SoftDeletion { .flag("a_deleted") }
 
     @NSManaged var a_id: String
     @NSManaged var a_name: String
@@ -117,4 +123,20 @@ final class HierarchyBrand: HierarchyAsset {
 
     @NSManaged var a_label: String
     @NSManaged var r_lenses: Set<HierarchyLens>
+}
+
+/// An entity outside the hierarchy, soft-deleted by date.
+@objc(AmphoraKitHierarchyMemo)
+@Entity(attributePrefix: "a_")
+final class HierarchyMemo: NSManagedObject, IdentifiableDatabaseObject, SoftDeletable {
+
+    typealias Schema = HierarchySchema
+
+    static var idKey: String { "a_id" }
+
+    static var softDeletion: SoftDeletion { .date("a_deletedAt") }
+
+    @NSManaged var a_id: String
+    @NSManaged var a_text: String
+    @NSManaged var a_deletedAt: Date?
 }

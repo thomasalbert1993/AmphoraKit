@@ -321,7 +321,7 @@ identifier belongs to the root: an object of another sub-entity holding it count
 
 ```swift
 extension Entry: SoftDeletable {
-    static var softDeletedKey: String { "a_deleted" }
+    static var softDeletion: SoftDeletion { .flag("a_deleted") }   // or .date("a_deletedAt")
 }
 
 try Entry.fetch(matching: .projectId(id), in: context)                         // live entries only
@@ -334,7 +334,10 @@ Every fetch built from a typed query leaves the objects marked deleted out — `
 `fetchFirst`, `count`, `exists`, `Request`, `FetchController`, batch `deleteAll` and `update` — a
 missing flag counting as live. A query on the identifier finds them too. Raw `NSFetchRequest`s and
 `NSPredicate`s are left as written. `isSoftDeleted`, `nilIfSoftDeleted` and
-`removingSoftDeleted()` read the flag.
+`removingSoftDeleted()` read the mark.
+
+A `.flag` is a Boolean, a missing value counting as live. A `.date` records when: `nil` while live,
+`softDeletionDate` reads it, and `.deleted(.lessThan(cutoff))` finds what to purge.
 
 ### References and contexts
 
