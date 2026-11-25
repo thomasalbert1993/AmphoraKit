@@ -141,7 +141,7 @@ public final class TestItem: NSManagedObject, IdentifiableDatabaseObject {
     public static var position: Field<TestItem, Position?> { .init(key: "positionRaw") }
     public static var folder: Field<TestItem, TestFolder?> { .init(key: "folder") }
 
-    public struct Query: EntityQuery {
+    public struct Query: DatabaseQuery {
         public let expression: QueryExpression<TestItem>
         public init(_ expression: QueryExpression<TestItem>) { self.expression = expression }
 
@@ -165,7 +165,7 @@ public final class TestItem: NSManagedObject, IdentifiableDatabaseObject {
         public static func folder(_ query: TestFolder.Query) -> Query { .init(.relation("folder", query.expression)) }
     }
 
-    public struct Sort: EntitySort {
+    public struct Sort: DatabaseSort {
         public let expression: SortExpression<TestItem>
         public init(_ expression: SortExpression<TestItem>) { self.expression = expression }
 
@@ -225,7 +225,7 @@ public final class TestFolder: NSManagedObject, IdentifiableDatabaseObject {
 
     public static var name: Field<TestFolder, String> { .init(key: "a_name") }
 
-    public struct Query: EntityQuery {
+    public struct Query: DatabaseQuery {
         public let expression: QueryExpression<TestFolder>
         public init(_ expression: QueryExpression<TestFolder>) { self.expression = expression }
 
@@ -234,7 +234,7 @@ public final class TestFolder: NSManagedObject, IdentifiableDatabaseObject {
         public static func items(_ match: CollectionMatch<TestItem>) -> Query { .init(.collection("r_items", match)) }
     }
 
-    public struct Sort: EntitySort {
+    public struct Sort: DatabaseSort {
         public let expression: SortExpression<TestFolder>
         public init(_ expression: SortExpression<TestFolder>) { self.expression = expression }
 

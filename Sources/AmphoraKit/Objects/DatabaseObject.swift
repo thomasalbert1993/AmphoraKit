@@ -19,10 +19,10 @@ public protocol DatabaseObject: NSManagedObject {
     associatedtype RootEntity: DatabaseObject = Self
 
     /// The typed predicate of the entity, resolved by implicit member: `.name("x")`, `.score(.greaterThan(2))`.
-    associatedtype Query: EntityQuery where Query.Root == RootEntity
+    associatedtype Query: DatabaseQuery where Query.Root == RootEntity
 
     /// The typed sort descriptor of the entity: `.name`, `.createdAt.descending`.
-    associatedtype Sort: EntitySort where Sort.Root == RootEntity
+    associatedtype Sort: DatabaseSort where Sort.Root == RootEntity
 
     /// The typed attribute values of the entity, for batch requests too: `.name("x")`, `.order(3)`.
     /// `@Entity` generates it; entities without it write values by key.

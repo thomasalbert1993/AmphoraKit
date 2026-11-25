@@ -101,7 +101,7 @@ extension Sequence where Element: SoftDeletable {
     }
 }
 
-extension EntityQuery where Root: SoftDeletable {
+extension DatabaseQuery where Root: SoftDeletable {
 
     /// The same query, the objects marked deleted included.
     public func withDeleted() -> Self {
@@ -123,7 +123,7 @@ extension EntityQuery where Root: SoftDeletable {
     }
 }
 
-extension EntityQuery where Root: SoftDeletable {
+extension DatabaseQuery where Root: SoftDeletable {
 
     /// The objects marked deleted in a date range — before a purge, say. Matches nothing on a
     /// `.flag` entity, which doesn't record when.

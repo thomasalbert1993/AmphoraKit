@@ -208,8 +208,8 @@ default: Kind.text) var kind: Kind` instead; `@StorageOnly` leaves a column out,
 `generatesAccessors: false` stops `@Entity` writing accessors for storage nothing exposes, when
 the accessors live in extensions it can't see.
 
-Without the macros, write `Query` and `Sort` by hand: a struct conforming to `EntityQuery` or
-`EntitySort` with one static per attribute. `AmphoraKitTestSupport/TestModel.swift` shows both.
+Without the macros, write `Query` and `Sort` by hand: a struct conforming to `DatabaseQuery` or
+`DatabaseSort` with one static per attribute. `AmphoraKitTestSupport/TestModel.swift` shows both.
 
 ### One prefix for both
 

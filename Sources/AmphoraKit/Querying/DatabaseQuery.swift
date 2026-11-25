@@ -9,7 +9,7 @@ import Foundation
 /// are generic functions of the package: the compiler binds them from the expected query type,
 /// and operators declared in macro-generated types are not reliably found from other files.
 ///
-public protocol EntityQuery {
+public protocol DatabaseQuery {
 
     /// The entity. Left unconstrained on purpose: a same-type requirement back to `DatabaseObject.Query`
     /// would make the two protocols mutually recursive, which the compiler rejects.
@@ -22,7 +22,7 @@ public protocol EntityQuery {
     init(_ expression: QueryExpression<Root>)
 }
 
-extension EntityQuery {
+extension DatabaseQuery {
 
     /// Matches everything.
     public static var all: Self {
@@ -64,7 +64,7 @@ extension EntityQuery {
     }
 }
 
-extension EntityQuery where Root: IdentifiableDatabaseObject {
+extension DatabaseQuery where Root: IdentifiableDatabaseObject {
 
     /// The object with the identifier.
     public static func id(_ id: Root.ID) -> Self {
@@ -83,17 +83,17 @@ extension EntityQuery where Root: IdentifiableDatabaseObject {
 }
 
 /// Both queries match.
-public func && <Query: EntityQuery>(lhs: Query, rhs: Query) -> Query {
+public func && <Query: DatabaseQuery>(lhs: Query, rhs: Query) -> Query {
     .init(.and(lhs.expression, rhs.expression))
 }
 
 /// Either query matches.
-public func || <Query: EntityQuery>(lhs: Query, rhs: Query) -> Query {
+public func || <Query: DatabaseQuery>(lhs: Query, rhs: Query) -> Query {
     .init(.or(lhs.expression, rhs.expression))
 }
 
 /// The query doesn't match.
-public prefix func ! <Query: EntityQuery>(query: Query) -> Query {
+public prefix func ! <Query: DatabaseQuery>(query: Query) -> Query {
     .init(.not(query.expression))
 }
 
@@ -174,7 +174,7 @@ extension IdentifiableDatabaseObject {
 //-------------------
 
 /// The typed sort descriptor of an entity, the nested `Sort` type `@Entity` generates.
-public protocol EntitySort {
+public protocol DatabaseSort {
 
     /// The entity. Left unconstrained on purpose: a same-type requirement back to `DatabaseObject.Query`
     /// would make the two protocols mutually recursive, which the compiler rejects.
@@ -187,7 +187,7 @@ public protocol EntitySort {
     init(_ expression: SortExpression<Root>)
 }
 
-extension EntitySort {
+extension DatabaseSort {
 
     /// Creates an ascending sort on a key.
     public init(key: String, ascending: Bool = true, stringComparison: SortExpression<Root>.StringComparison = .standard) {
@@ -215,10 +215,24 @@ extension EntitySort {
     }
 }
 
-extension EntitySort where Root: IdentifiableDatabaseObject {
+extension DatabaseSort where Root: IdentifiableDatabaseObject {
 
     /// Sorts by identifier.
     public static var id: Self {
         .init(key: Root.idKey)
     }
 }
+
+
+//-------------------
+// MARK: Former names
+//-------------------
+
+/// The former name of `DatabaseQuery`. It clashed with App Intents' `EntityQuery`: the compiler's
+/// constant extraction took the queries of class entities for intent queries, and crashed.
+@available(*, deprecated, renamed: "DatabaseQuery")
+public typealias EntityQuery = DatabaseQuery
+
+/// The former name of `DatabaseSort`, renamed along with `DatabaseQuery`.
+@available(*, deprecated, renamed: "DatabaseSort")
+public typealias EntitySort = DatabaseSort

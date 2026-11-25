@@ -9,7 +9,7 @@ import Foundation
 ///
 public protocol EntityAttributeAssignment {
 
-    /// The entity. Left unconstrained, like `EntityQuery.Root`.
+    /// The entity. Left unconstrained, like `DatabaseQuery.Root`.
     associatedtype Root
 
     /// The storage key of the attribute.

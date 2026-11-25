@@ -5,10 +5,10 @@ import CoreData
 ///
 /// Reads every `@NSManaged` property of the class and every `@Stored` declaration, and adds to
 /// the class:
-/// - `struct Query: EntityQuery` with two static functions per attribute (`.name(Match<String>)`,
+/// - `struct Query: DatabaseQuery` with two static functions per attribute (`.name(Match<String>)`,
 ///   `.name("x")`), two per to-one relationship taking a nullability match or the target's query
 ///   (`.folder(.name("x"))`), one per to-many relationship taking a `CollectionMatch`;
-/// - `struct Sort: EntitySort` with one static per attribute;
+/// - `struct Sort: DatabaseSort` with one static per attribute;
 /// - `struct AttributeAssignment: EntityAttributeAssignment` with one static per attribute encoding
 ///   the value to its stored form, for the batch requests `insert` and `update(matching:set:)`:
 ///   `[.order(3)]`;
