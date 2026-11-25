@@ -331,8 +331,8 @@ try Entry.fetch(id: entryId, in: context)                                      /
 ```
 
 Every fetch built from a typed query leaves the objects marked deleted out — `fetch`,
-`fetchFirst`, `count`, `exists`, `Request`, `FetchController`, batch `deleteAll` and `update` — a
-missing flag counting as live. A query on the identifier finds them too. Raw `NSFetchRequest`s and
+`fetchFirst`, `count`, `exists`, `Request`, `FetchController`, batch `deleteAll` and `update`. A
+query on the identifier finds them too. Raw `NSFetchRequest`s and
 `NSPredicate`s are left as written. `isSoftDeleted`, `nilIfSoftDeleted` and
 `removingSoftDeleted()` read the mark.
 
