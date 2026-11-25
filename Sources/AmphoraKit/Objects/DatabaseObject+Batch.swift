@@ -55,7 +55,7 @@ extension DatabaseObject {
 
     private static func execute(_ request: NSPersistentStoreRequest, in context: DatabaseContext<Schema>, _ description: String) throws -> NSPersistentStoreResult {
         do {
-            return try context.nsContext.execute(request)
+            return try context.execute(request)
         }
         catch {
             context.database?.configuration.logger?.error("Failed \(description) of \(entityName)", error)

@@ -145,6 +145,26 @@ struct BackgroundTaskTests {
     }
 
 
+    // MARK: Any thread
+
+    @Test("the view context is fetched, counted, inserted into and deleted from a background thread, on its own queue")
+    func viewContextFromBackgroundThread() async throws {
+        let (database, _) = try makeDatabase()
+        try await database.seedItems(["a", "b"])
+        let viewContext = database.viewContext
+        let counts = try await Task.detached {
+            let fetched = TestItem.fetchOrEmpty(in: viewContext).count
+            let counted = try TestItem.count(matching: .name("a"), in: viewContext)
+            let exists = try TestItem.exists(matching: .name("b"), in: viewContext)
+            let created = try TestItem.create(id: "c", in: viewContext)
+            viewContext.delete(created)
+            return [fetched, counted, exists ? 1 : 0]
+        }.value
+        #expect(counts == [2, 1, 1])
+        database.viewContext.rollback()
+    }
+
+
     // MARK: Shared queues
 
     @Test("two databases sharing their queues never run a label's tasks alongside each other")

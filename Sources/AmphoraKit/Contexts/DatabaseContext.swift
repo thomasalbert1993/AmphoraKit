@@ -1,4 +1,4 @@
-import CoreData
+@preconcurrency import CoreData // the contexts run the closures on their queue; Core Data is not annotated for Sendable yet
 
 /// A managed object context bound to a schema.
 ///
@@ -50,6 +50,9 @@ public struct DatabaseContext<Schema: DatabaseSchema>: Sendable, Equatable {
     // MARK: Forwarding
     //-------------------
 
+    // Every operation runs on the context's queue (`performAndWait`, inline when already on it),
+    // so that it is safe from any thread — the view context read from a background task included.
+
     public func perform(_ block: @escaping @Sendable () -> Void) {
         nsContext.perform(block)
     }
@@ -59,7 +62,7 @@ public struct DatabaseContext<Schema: DatabaseSchema>: Sendable, Equatable {
     }
 
     public func save() throws {
-        try nsContext.save()
+        try nsContext.performAndWait { try nsContext.save() }
     }
 
     /// Saves when there are changes, inside `performAndWait`.
@@ -72,43 +75,50 @@ public struct DatabaseContext<Schema: DatabaseSchema>: Sendable, Equatable {
     }
 
     public func rollback() {
-        nsContext.rollback()
+        nsContext.performAndWait { nsContext.rollback() }
     }
 
     public func reset() {
-        nsContext.reset()
+        nsContext.performAndWait { nsContext.reset() }
     }
 
     public func refreshAllObjects() {
-        nsContext.refreshAllObjects()
+        nsContext.performAndWait { nsContext.refreshAllObjects() }
     }
 
     public func processPendingChanges() {
-        nsContext.processPendingChanges()
+        nsContext.performAndWait { nsContext.processPendingChanges() }
     }
 
     public func refresh(_ object: NSManagedObject, mergeChanges: Bool) {
-        nsContext.refresh(object, mergeChanges: mergeChanges)
+        nonisolated(unsafe) let object = object // used on the context's queue, the object's own
+        nsContext.performAndWait { nsContext.refresh(object, mergeChanges: mergeChanges) }
     }
 
     /// Marks an object of the schema for deletion.
     public func delete<T: DatabaseObject>(_ object: T) where T.Schema == Schema {
-        nsContext.delete(object)
+        nonisolated(unsafe) let object = object // used on the context's queue, the object's own
+        nsContext.performAndWait { nsContext.delete(object) }
     }
 
     /// Runs a fetch request of the schema.
     public func fetch<T: DatabaseObject>(_ request: NSFetchRequest<T>) throws -> [T] where T.Schema == Schema {
-        try nsContext.fetch(request)
+        try nsContext.performAndWait { try nsContext.fetch(request) }
     }
 
     /// Counts the objects a fetch request of the schema matches.
     public func count<T: DatabaseObject>(for request: NSFetchRequest<T>) throws -> Int where T.Schema == Schema {
-        try nsContext.count(for: request)
+        try nsContext.performAndWait { try nsContext.count(for: request) }
+    }
+
+    /// Runs a store request — a batch request — on the context.
+    func execute(_ request: NSPersistentStoreRequest) throws -> NSPersistentStoreResult {
+        try nsContext.performAndWait { try nsContext.execute(request) }
     }
 
     /// The object with the identifier, fetched if needed.
     public func existingObject<T: DatabaseObject>(with objectID: NSManagedObjectID, as type: T.Type = T.self) throws -> T where T.Schema == Schema {
-        guard let object = try nsContext.existingObject(with: objectID) as? T else {
+        guard let object = try nsContext.performAndWait({ try nsContext.existingObject(with: objectID) }) as? T else {
             throw DatabaseError.notFound(entity: T.entityName, id: objectID.uriRepresentation().absoluteString)
         }
         return object

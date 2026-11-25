@@ -1,4 +1,4 @@
-import CoreData
+@preconcurrency import CoreData // the contexts run the closures on their queue; Core Data is not annotated for Sendable yet
 
 /// A `Sendable` handle on an object, by identifier: what crosses queues and actors, resolved again
 /// in the context that needs the object.
@@ -66,7 +66,8 @@ extension DatabaseObject {
         if managedObjectContext === context.nsContext {
             return self
         }
-        return (try? context.nsContext.existingObject(with: objectID)) as? Self
+        let objectID = objectID
+        return (try? context.nsContext.performAndWait { try context.nsContext.existingObject(with: objectID) }) as? Self
     }
 
     /// The context of the object, `nil` once it was deleted and saved, or its context reset.

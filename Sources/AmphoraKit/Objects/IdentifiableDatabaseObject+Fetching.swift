@@ -1,4 +1,4 @@
-import CoreData
+@preconcurrency import CoreData // the contexts run the closures on their queue; Core Data is not annotated for Sendable yet
 
 extension IdentifiableDatabaseObject {
 
@@ -72,17 +72,21 @@ extension IdentifiableDatabaseObject {
         let request = NSFetchRequest<NSManagedObject>(entityName: RootEntity.entityName)
         request.predicate = RootEntity.Query.id(id).nsPredicate
         request.fetchLimit = 1
-        return try context.nsContext.fetch(request).first
+        return try context.nsContext.performAndWait { try context.nsContext.fetch(request).first }
     }
 
     private static func insert(id: ID, in context: DatabaseContext<Schema>) throws -> Self {
         guard !isAbstract(in: context) else {
             throw DatabaseError.abstractEntity(entityName)
         }
-        let object = Self(context: context)
-        object.setValue(id, forKey: idKey)
-        object.didCreate()
-        return object
+        // Inserted and set up on the context's queue, safe from any thread.
+        nonisolated(unsafe) let storedID: Any = id
+        return context.nsContext.performAndWait {
+            let object = Self(context: context)
+            object.setValue(storedID, forKey: idKey)
+            object.didCreate()
+            return object
+        }
     }
 
     /// Deletes the object with the identifier, if any, with a batch request.
