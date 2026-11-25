@@ -317,7 +317,7 @@ public final class Database<Schema: DatabaseSchema>: Sendable {
     }
 
     private func tag(_ context: NSManagedObjectContext) {
-        context.userInfo[DatabaseReference.userInfoKey] = DatabaseReference(self)
+        context.userInfo[DatabaseBox.userInfoKey] = DatabaseBox(self)
     }
 
     /// Destroys the store and adds it back from its description, so that its type and options

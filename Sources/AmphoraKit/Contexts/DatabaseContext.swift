@@ -31,7 +31,7 @@ public struct DatabaseContext<Schema: DatabaseSchema>: Sendable, Equatable {
 
     /// The database that created the context, `nil` for a context created elsewhere.
     public var database: Database<Schema>? {
-        (nsContext.userInfo[DatabaseReference.userInfoKey] as? DatabaseReference)?.database as? Database<Schema>
+        (nsContext.userInfo[DatabaseBox.userInfoKey] as? DatabaseBox)?.database as? Database<Schema>
     }
 
     /// Reads any property of the underlying context: `context.hasChanges`, `context.deletedObjects`…
@@ -139,7 +139,7 @@ public struct DatabaseContext<Schema: DatabaseSchema>: Sendable, Equatable {
 }
 
 /// The weak back-reference a `Database` leaves in the `userInfo` of every context it creates.
-final class DatabaseReference: NSObject {
+final class DatabaseBox: NSObject {
 
     static let userInfoKey = "AmphoraKit.database"
 

@@ -213,6 +213,15 @@ struct HierarchyTests {
         #expect(try HierarchyLens.fetchFirst(id: "lens-ef", in: context)?.a_mount == "EF")
     }
 
+    @Test("a sub-entity's reference resolves to the sub-entity")
+    func subEntityReference() throws {
+        let database = try makeDatabase()
+        let lens = try HierarchyLens.fetch(id: "lens-pl", in: database.viewContext)
+        let reference: DatabaseObjectReference<HierarchyLens> = lens.reference
+        let resolved: HierarchyLens? = try reference.resolve(in: database.viewContext)
+        #expect(resolved?.a_mount == "PL")
+    }
+
     @Test("a sub-entity's columns and fields name its own storage")
     func columnsAndFields() {
         #expect(HierarchyLens.Columns.mount.key == "a_mount")
