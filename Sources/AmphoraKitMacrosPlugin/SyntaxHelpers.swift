@@ -88,6 +88,33 @@ extension TypeSyntax {
         ].contains(lastComponentName ?? "")
     }
 
+    /// Whether the type is stored as an attribute, by its type alone: a standard value, a number,
+    /// a collection (an array, a dictionary, a set of standard values — transformables), or a
+    /// type holding `Any`. Anything else — an entity, a set of entities — is a relationship. Used
+    /// when attributes and relationships share their prefix.
+    var isAttributeValueType: Bool {
+        let type = optionalWrappedType ?? self
+        if type.isStandardValueType || ["NSNumber", "NSDecimalNumber", "NSString", "NSData", "NSDate"].contains(type.lastComponentName ?? "") {
+            return true
+        }
+        if let element = type.setElementType {
+            return element.isStandardValueType
+        }
+        return type.arrayElementType != nil || type.is(DictionaryTypeSyntax.self) || type.holdsAny
+    }
+
+    /// Whether the type holds `Any` or `AnyObject` somewhere: it can't be compared.
+    var holdsAny: Bool {
+        tokens(viewMode: .sourceAccurate).contains { token in
+            switch token.tokenKind {
+                case .identifier("Any"), .identifier("AnyObject"), .keyword(.Any), .keyword(.any):
+                    return true
+                default:
+                    return false
+            }
+        }
+    }
+
     /// Whether the type is an untyped Core Data collection the macro can't type.
     var isUntypedCollection: Bool {
         ["NSSet", "NSOrderedSet", "NSMutableSet", "NSMutableOrderedSet"].contains(lastComponentName ?? "")

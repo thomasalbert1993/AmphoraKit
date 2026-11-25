@@ -211,6 +211,18 @@ the accessors live in extensions it can't see.
 Without the macros, write `Query` and `Sort` by hand: a struct conforming to `EntityQuery` or
 `EntitySort` with one static per attribute. `AmphoraKitTestSupport/TestModel.swift` shows both.
 
+### One prefix for both
+
+```swift
+@Entity(attributePrefix: "cd_", relationshipPrefix: "cd_")
+```
+
+When attributes and relationships share their prefix, the type tells them apart: a standard
+value, a number, an array, a dictionary or a set of standard values is an attribute; an entity or
+a set of entities is a relationship. A type holding `Any` (`[String: Any]`) can't be compared: it
+gets its `Match` member (`.isNil`), its accessor and its assignments, but no equality member, sort
+or field.
+
 ## Entity hierarchies
 
 ```swift

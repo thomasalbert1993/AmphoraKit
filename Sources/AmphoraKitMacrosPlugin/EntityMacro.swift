@@ -57,6 +57,9 @@ struct EntityModel {
         let storageType: String
         /// The coder of a coded column, which its queries and assignments encode with.
         let coder: String?
+        /// Whether the exposed value can be compared: a type holding `Any` (`[String: Any]`) can't,
+        /// and gets no equality member, sort or field.
+        let isComparable: Bool
     }
 
     /// How the generated types are shaped, from where the entity sits in its hierarchy.
@@ -206,9 +209,16 @@ struct EntityModel {
             annotations[name] = StoredAnnotation(storageName: name, domainName: annotation.domainName, exposedType: annotation.exposedType, docCommentLines: annotation.docCommentLines)
         }
 
+        // One prefix for both kinds (`cd_`): the type tells them apart, a value type being an
+        // attribute and anything else — an entity, a set of entities — a relationship.
+        let hasSharedPrefix = !attributePrefix.isEmpty && attributePrefix == relationshipPrefix
+
         for storage in storages where !excluded.contains(storage.name) {
-            let isRelationship = storage.role.map { $0 == .relationship } ?? (!relationshipPrefix.isEmpty && storage.name.hasPrefix(relationshipPrefix))
-            let isAttribute = storage.role.map { $0 == .attribute } ?? (!attributePrefix.isEmpty && storage.name.hasPrefix(attributePrefix))
+            let isPrefixedByShared = storage.role == nil && hasSharedPrefix && storage.name.hasPrefix(attributePrefix)
+            let isRelationship = storage.role.map { $0 == .relationship }
+                ?? (isPrefixedByShared ? !storage.type.isAttributeValueType : (!relationshipPrefix.isEmpty && storage.name.hasPrefix(relationshipPrefix)))
+            let isAttribute = storage.role.map { $0 == .attribute }
+                ?? (isPrefixedByShared ? storage.type.isAttributeValueType : (!attributePrefix.isEmpty && storage.name.hasPrefix(attributePrefix)))
             let isUnprefixed = attributePrefix.isEmpty && relationshipPrefix.isEmpty
             let prefix: String
             if storage.role != nil {
@@ -262,6 +272,7 @@ struct EntityModel {
 
             // A coded column has no static field: `Field` carries a key, not a coder.
             let generatesField = coders[storage.name] == nil
+                && !(annotation?.exposedType ?? storage.type).holdsAny
                 && !staticNames.contains(domainName)
                 && !Self.reservedStaticNames.contains(domainName)
 
@@ -273,7 +284,8 @@ struct EntityModel {
                 generatesAccessor: generatesAccessor,
                 generatesField: generatesField,
                 storageType: storage.type.trimmedDescription,
-                coder: coders[storage.name]
+                coder: coders[storage.name],
+                isComparable: !(annotation?.exposedType ?? storage.type).holdsAny
             ))
         }
     }
@@ -364,6 +376,12 @@ struct EntityModel {
                 \(docLines)    \(access)static func \(property.domainName)(_ match: AmphoraKit.Match<\(exposedType)>) -> \(queryType) {
                         .init(.match("\(property.storageName)", \(encodedMatch)))
                     }
+
+                """
+                // A value that can't be compared has no equality member, only the matches that
+                // need no comparison (`.isNil`).
+                guard property.isComparable else { continue }
+                members += """
                 \(docLines)    \(access)static func \(property.domainName)(_ value: \(exposedType)) -> \(queryType) {
                         .\(property.domainName)(.equal(value))
                     }
@@ -404,8 +422,8 @@ struct EntityModel {
     private func renderSort() -> DeclSyntax {
         var members = ""
         for property in properties {
-            // Ordering a coded column would order its encoding.
-            guard case .attribute = property.kind, property.coder == nil else { continue }
+            // Ordering a coded column would order its encoding; a value holding `Any` has no order.
+            guard case .attribute = property.kind, property.coder == nil, property.isComparable else { continue }
             let docLines = doc(property.docCommentLines, indent: "    ")
             members += """
             \(docLines)    \(access)static var \(property.domainName): \(memberType("Sort")) {
