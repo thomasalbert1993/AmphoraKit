@@ -51,7 +51,8 @@ dependencies: [
 | `Database<Schema>` | The container, its view context, its background queues, `clear()`. |
 | `DatabaseContext<Schema>` | A context of that model only. `nsContext` is the escape hatch. |
 | `DatabaseObject` | An entity: its `Schema`, `Query` and `Sort`. No identifier required. |
-| `IdentifiableDatabaseObject` | An entity with an `id` stored under `idKey`: adds `fetch(id:)`, `.id(_:)`, `delete(ids:)`… |
+| `IdentifiableDatabaseObject` | An entity with an `id` stored under `idKey`: adds `fetch(id:)`, `create(id:)`, `.id(_:)`, `delete(ids:)`, `reference`… |
+| `SoftDeletable` | An entity whose objects are marked deleted: typed fetches leave them out. |
 | `Match<Value>` | A condition on one value: `.equal`, `.greaterThan`, `.in`, `.contains`, `.isNil`… |
 | `FetchController<T>` | Observes a request on the main context, coalesces changes. |
 
@@ -210,6 +211,43 @@ the accessors live in extensions it can't see.
 Without the macros, write `Query` and `Sort` by hand: a struct conforming to `EntityQuery` or
 `EntitySort` with one static per attribute. `AmphoraKitTestSupport/TestModel.swift` shows both.
 
+## Entity hierarchies
+
+```swift
+@Entity(attributePrefix: "a_")
+class Asset: NSManagedObject, IdentifiableDatabaseObject {   // non-final: an open root
+    typealias Schema = CatalogSchema
+    static var idKey: String { "a_id" }
+    @NSManaged var a_id: String
+    @NSManaged var a_name: String
+}
+
+@Entity(attributePrefix: "a_")
+class DynamicAsset: Asset {                                  // parent read from the superclass
+    @NSManaged var a_provider: String
+}
+
+@Entity(attributePrefix: "a_")
+final class Lens: DynamicAsset {
+    @NSManaged var a_mount: String
+}
+
+try Asset.fetch(matching: .name("Planar"), in: context)                          // every kind of asset
+try Lens.fetch(matching: [.mount("PL"), .provider("rental"), .name("Planar")], in: context)
+let controller = FetchController(Lens.request(matching: [.mount("PL")]), in: database)
+```
+
+- The conformance belongs to the root (`RootEntity`), its sub-entities inherit it.
+- On a non-final entity, `@Entity` generates classes; on a sub-entity, classes inheriting its
+  parent's. `Lens.Query` has `mount` and every ancestor's member, `Lens.Sort`, the assignments
+  and `stored` too.
+- A sub-entity gets its own `fetch`, `fetchFirst`, `count`, `exists`, logged variants, `request`,
+  batch `deleteAll`, `insert`, `update(matching:set:)` and `update(with:)`, taking its own types.
+- The superclass, first in the inheritance clause, is the parent entity. `@Entity(root: true)`
+  says it is a plain base class instead.
+- Limits: the expression form (`Lens.mount == "PL"`) and generic code over `DatabaseObject`
+  work with the root's types; build a sub-entity's `FetchController` from `Lens.request(…)`.
+
 ## Writing values
 
 ```swift
@@ -258,11 +296,58 @@ let notes = try Note.fetch(request: Note.request(projectId: id).limited(to: 20),
 let controller = FetchController(Note.request(projectId: id), in: database)
 ```
 
-| Fetch | Failure |
-|---|---|
-| `fetch(matching:sortedBy:limit:in:)`, `first`, `count`, `fetch(id:)` | throws |
-| `fetchOrEmpty(matching:sortedBy:limit:in:)` | logs, returns `[]` |
-| `fetchFirstOrNil(matching:sortedBy:in:)` | logs, returns `nil` |
+| Returns | Throws | Logs, returns empty |
+|---|---|---|
+| `[Self]` | `fetch(matching:sortedBy:limit:in:)` | `fetchOrEmpty(matching:…)` |
+| `Self?` | `fetchFirst(matching:sortedBy:in:)` | `fetchFirstOrNil(matching:…)` |
+| `Self?` by id | `fetchFirst(id:in:)` | `fetchFirstOrNil(id:in:)` |
+| `Self` by id, `notFound` otherwise | `fetch(id:in:)` | — |
+| `[Self]` by ids | `fetch(ids:in:)` | `fetchOrEmpty(ids:in:)` |
+| `Int` / `Bool` | `count(matching:in:)`, `exists(matching:in:)` | — |
+
+`all(of:)` ANDs a list of queries, `any(of:)` ORs one.
+
+### Creating
+
+```swift
+let note = try Note.create(id: "n1", in: context)          // alreadyExists when taken, didCreate() once the id is set
+let tag = try Tag.fetchOrCreate(id: "t1", in: context)      // didCreate() only when it inserts
+```
+
+`create` refuses an abstract entity (`DatabaseError.abstractEntity`). In a hierarchy, the
+identifier belongs to the root: an object of another sub-entity holding it counts as taken.
+
+### Soft delete
+
+```swift
+extension Entry: SoftDeletable {
+    static var softDeletedKey: String { "a_deleted" }
+}
+
+try Entry.fetch(matching: .projectId(id), in: context)                         // live entries only
+try Entry.fetch(matching: Entry.Query.projectId(id).withDeleted(), in: context) // all of them
+try Entry.fetch(matching: .deleted(true), in: context)                         // the deleted ones
+try Entry.fetch(id: entryId, in: context)                                      // deleted or not
+```
+
+Every fetch built from a typed query leaves the objects marked deleted out — `fetch`,
+`fetchFirst`, `count`, `exists`, `Request`, `FetchController`, batch `deleteAll` and `update` — a
+missing flag counting as live. A query on the identifier finds them too. Raw `NSFetchRequest`s and
+`NSPredicate`s are left as written. `isSoftDeleted`, `nilIfSoftDeleted` and
+`removingSoftDeleted()` read the flag.
+
+### References and contexts
+
+```swift
+let reference = note.reference                              // Sendable, by identifier
+try await database.enqueueBackgroundTaskAndSave { context in
+    guard let note = try reference.resolve(in: context) else { return }
+    …
+}
+let notes = try references.resolve(in: context)             // one fetch, in order
+let mine = note.in(otherContext)                            // nil when not there, or never saved
+note.databaseContext; note.isInViewContext
+```
 
 `Match` factories depend on the value: ordering only for `Comparable`, text operators only for
 `String`, `.isNil` only for optionals. A stored enum or `StorageConvertible` is compared on its
