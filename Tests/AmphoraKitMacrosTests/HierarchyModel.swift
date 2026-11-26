@@ -101,7 +101,7 @@ class HierarchyAsset: NSManagedObject, IdentifiableDatabaseObject, SoftDeletable
 
 /// A sub-entity that has sub-entities of its own.
 @objc(AmphoraKitHierarchyDynamicAsset)
-@Entity(attributePrefix: "a_", relationshipPrefix: "r_")
+@Entity(attributePrefix: "a_", relationshipPrefix: "r_", parent: HierarchyAsset.self)
 class HierarchyDynamicAsset: HierarchyAsset {
 
     @NSManaged var a_provider: String
@@ -109,7 +109,7 @@ class HierarchyDynamicAsset: HierarchyAsset {
 
 /// A leaf, two levels down, related to an entity of the sibling branch.
 @objc(AmphoraKitHierarchyLens)
-@Entity(attributePrefix: "a_", relationshipPrefix: "r_")
+@Entity(attributePrefix: "a_", relationshipPrefix: "r_", parent: HierarchyDynamicAsset.self)
 final class HierarchyLens: HierarchyDynamicAsset {
 
     @NSManaged var a_mount: String
@@ -118,7 +118,7 @@ final class HierarchyLens: HierarchyDynamicAsset {
 
 /// A sibling leaf, one level down.
 @objc(AmphoraKitHierarchyBrand)
-@Entity(attributePrefix: "a_", relationshipPrefix: "r_")
+@Entity(attributePrefix: "a_", relationshipPrefix: "r_", parent: HierarchyAsset.self)
 final class HierarchyBrand: HierarchyAsset {
 
     @NSManaged var a_label: String

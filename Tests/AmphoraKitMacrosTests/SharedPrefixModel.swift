@@ -96,9 +96,9 @@ class SharedDatabaseObject: NSManagedObject {
     }
 }
 
-/// The root, under the base class (`root: true`).
+/// The root, under the base class: no `parent:`.
 @objc(AmphoraKitSharedAsset)
-@Entity(attributePrefix: "cd_", relationshipPrefix: "cd_", root: true)
+@Entity(attributePrefix: "cd_", relationshipPrefix: "cd_")
 class SharedAsset: SharedDatabaseObject, IdentifiableDatabaseObject, SoftDeletable {
 
     typealias Schema = SharedPrefixSchema
@@ -118,7 +118,7 @@ class SharedAsset: SharedDatabaseObject, IdentifiableDatabaseObject, SoftDeletab
 
 /// A sub-entity with a to-one, and to-many relationships to its own entity.
 @objc(AmphoraKitSharedGear)
-@Entity(attributePrefix: "cd_", relationshipPrefix: "cd_")
+@Entity(attributePrefix: "cd_", relationshipPrefix: "cd_", parent: SharedAsset.self)
 final class SharedGear: SharedAsset {
 
     @NSManaged var cd_weight: Double
@@ -129,7 +129,7 @@ final class SharedGear: SharedAsset {
 
 /// A plain root under the base class.
 @objc(AmphoraKitSharedBrand)
-@Entity(attributePrefix: "cd_", relationshipPrefix: "cd_", root: true)
+@Entity(attributePrefix: "cd_", relationshipPrefix: "cd_")
 final class SharedBrand: SharedDatabaseObject, IdentifiableDatabaseObject {
 
     typealias Schema = SharedPrefixSchema

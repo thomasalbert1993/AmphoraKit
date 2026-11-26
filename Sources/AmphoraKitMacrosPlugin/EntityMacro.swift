@@ -120,14 +120,26 @@ struct EntityModel {
         let generatesAccessors = arguments.argument(labeled: "generatesAccessors")?.as(BooleanLiteralExprSyntax.self)?.literal.tokenKind != .keyword(.false)
         isStoragePrivate = arguments.argument(labeled: "storageAccess")?.as(MemberAccessExprSyntax.self)?.declName.baseName.text == "private"
 
-        // The superclass comes first in the inheritance clause, and an entity always has one:
-        // anything but `NSManagedObject` there is the parent entity, unless `root: true` says the
-        // superclass is a plain base class.
+        // A sub-entity names its parent (`parent: Asset.self`), which must be its superclass, first
+        // in the inheritance clause. Without it, the entity is a root: its superclass is
+        // `NSManagedObject` or a plain base class.
         isFinal = classDecl.modifiers.contains { $0.name.tokenKind == .keyword(.final) }
-        let isDeclaredRoot = arguments.argument(labeled: "root")?.as(BooleanLiteralExprSyntax.self)?.literal.tokenKind == .keyword(.true)
+        let parentArgument = arguments.argument(labeled: "parent")
+        let parent = parentArgument?.as(MemberAccessExprSyntax.self).flatMap { access in
+            access.declName.baseName.text == "self" ? access.base?.trimmedDescription : nil
+        }
         let superclass = classDecl.inheritanceClause?.inheritedTypes.first?.type.trimmedDescription
-        if let superclass, !isDeclaredRoot, !["NSManagedObject", "CoreData.NSManagedObject"].contains(superclass) {
-            shape = .subEntity(parent: superclass)
+        if let parentArgument, parentArgument.as(NilLiteralExprSyntax.self) == nil {
+            if let parent, parent == superclass {
+                shape = .subEntity(parent: parent)
+            }
+            else {
+                context.diagnose(Diagnostic(node: parentArgument, message: MacroDiagnostic(
+                    "parentNotSuperclass",
+                    "'parent:' must name the superclass, first in the inheritance clause: '\(superclass ?? "NSManagedObject").self'"
+                )))
+                shape = isFinal ? .finalRoot : .openRoot
+            }
         }
         else {
             shape = isFinal ? .finalRoot : .openRoot

@@ -242,12 +242,12 @@ class Asset: NSManagedObject, IdentifiableDatabaseObject {   // non-final: an op
     @NSManaged var a_name: String
 }
 
-@Entity(attributePrefix: "a_")
-class DynamicAsset: Asset {                                  // parent read from the superclass
+@Entity(attributePrefix: "a_", parent: Asset.self)
+class DynamicAsset: Asset {                                  // a sub-entity names its parent
     @NSManaged var a_provider: String
 }
 
-@Entity(attributePrefix: "a_")
+@Entity(attributePrefix: "a_", parent: DynamicAsset.self)
 final class Lens: DynamicAsset {
     @NSManaged var a_mount: String
 }
@@ -263,8 +263,9 @@ let controller = FetchController(Lens.request(matching: [.mount("PL")]), in: dat
   and `stored` too.
 - A sub-entity gets its own `fetch`, `fetchFirst`, `count`, `exists`, logged variants, `request`,
   batch `deleteAll`, `insert`, `update(matching:set:)` and `update(with:)`, taking its own types.
-- The superclass, first in the inheritance clause, is the parent entity. `@Entity(root: true)`
-  says it is a plain base class instead.
+- A sub-entity names its parent, `parent: DynamicAsset.self`, which must be its superclass, first
+  in the inheritance clause. Without `parent:`, the entity is a root, whatever its superclass:
+  `NSManagedObject`, or a plain base class sharing code between entities.
 - Limits: the expression form (`Lens.mount == "PL"`) and generic code over `DatabaseObject`
   work with the root's types; build a sub-entity's `FetchController` from `Lens.request(…)`.
 

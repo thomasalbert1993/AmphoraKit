@@ -39,17 +39,16 @@ import CoreData
 /// - Parameter storageAccess: The access of the generated `@NSManaged` storage. `.private` keeps
 ///   `a_text` inside the class body: the compiler then rejects any other use of the storage names,
 ///   reads going through the accessors and `stored`, writes through `update(with:)`.
-/// - Parameter root: Whether the entity is the root of its hierarchy although its superclass isn't
-///   `NSManagedObject`: a plain base class, not an entity. Without it, a superclass other than
-///   `NSManagedObject` is the parent entity.
+/// - Parameter parent: The parent entity of a sub-entity, `Asset.self` for `class Lens: Asset`:
+///   it must be the superclass, first in the inheritance clause. Without it, the entity is the root
+///   of its hierarchy, whatever its superclass — `NSManagedObject` or a plain base class.
 ///
-/// Entity hierarchies: a non-final entity gets classes instead of structs, and an entity inheriting
-/// from another gets classes inheriting from its parent's — the parent read from the superclass,
-/// first in the inheritance clause. A sub-entity's `Query` thus has its parent's members too:
+/// Entity hierarchies: a non-final entity gets classes instead of structs, and a sub-entity gets
+/// classes inheriting from its parent's. A sub-entity's `Query` thus has its parent's members too:
 /// `GearItem.Query.brand(_:)` beside the inherited `Asset.Query.name(_:)`.
 ///
 @attached(member, names: named(Query), named(Sort), named(AttributeAssignment), named(Assignment), named(Columns), named(StoredValues), named(stored), arbitrary)
-public macro Entity(attributePrefix: String = "", relationshipPrefix: String = "", generatesAccessors: Bool = true, storageAccess: StorageAccess = .internal, root: Bool = false) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "EntityMacro")
+public macro Entity(attributePrefix: String = "", relationshipPrefix: String = "", generatesAccessors: Bool = true, storageAccess: StorageAccess = .internal, parent: NSManagedObject.Type? = nil) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "EntityMacro")
 
 /// The access of the `@NSManaged` storage `@Entity` writes.
 public enum StorageAccess: Sendable {

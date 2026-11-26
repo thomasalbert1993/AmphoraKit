@@ -1,6 +1,9 @@
 import XCTest
 import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
+import SwiftSyntax
+import SwiftParser
+import SwiftSyntaxMacroExpansion
 import AmphoraKitMacrosPlugin
 
 final class EntityMacroTests: XCTestCase {
@@ -760,7 +763,7 @@ final class EntityMacroTests: XCTestCase {
     func testSubEntityInheritsItsParentsTypes() {
         assertMacroExpansion(
             """
-            @Entity(attributePrefix: "a_", relationshipPrefix: "r_")
+            @Entity(attributePrefix: "a_", relationshipPrefix: "r_", parent: DynamicAsset.self)
             final class Lens: DynamicAsset, Mountable {
                 @NSManaged var a_mount: String
                 @NSManaged var r_brand: Brand?
@@ -958,10 +961,10 @@ final class EntityMacroTests: XCTestCase {
         )
     }
 
-    func testRootFlagKeepsAPlainBaseClassOutOfTheHierarchy() {
+    func testWithoutParentAPlainBaseClassStaysOutOfTheHierarchy() {
         assertMacroExpansion(
             """
-            @Entity(generatesAccessors: false, root: true)
+            @Entity(generatesAccessors: false)
             final class Note: AppObject {
                 @NSManaged var text: String
             }
@@ -1250,6 +1253,26 @@ final class EntityMacroTests: XCTestCase {
             macros: macros,
             indentationWidth: .spaces(4)
         )
+    }
+
+    func testParentMustBeTheSuperclass() throws {
+        let source = Parser.parse(source: """
+            @Entity(attributePrefix: "a_", parent: Asset.self)
+            final class Lens: DynamicAsset {
+                @NSManaged var a_mount: String
+            }
+            """)
+        let classDecl = try XCTUnwrap(source.statements.first?.item.as(ClassDeclSyntax.self))
+        let attribute = try XCTUnwrap(classDecl.attributes.first?.as(AttributeSyntax.self))
+        let context = BasicMacroExpansionContext()
+        let members = try EntityMacro.expansion(of: attribute, providingMembersOf: classDecl, conformingTo: [], in: context)
+            .map(\.trimmedDescription)
+
+        XCTAssertEqual(context.diagnostics.map(\.message), [
+            "'parent:' must name the superclass, first in the inheritance clause: 'DynamicAsset.self'"
+        ])
+        // Treated as a root meanwhile: no type inheriting from a parent's.
+        XCTAssertFalse(members.contains { $0.contains("Asset.Query") })
     }
 
     func testRejectsStruct() {
