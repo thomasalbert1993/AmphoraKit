@@ -281,14 +281,14 @@ final class EntityMacroTests: XCTestCase {
                     a_text
                 }
 
-                /// The value of `r_cue`, `nil` when it is a zombie.
+                /// The value of `r_cue`, `nil` when it is a zombie or filtered out.
                 public var cue: Cue? {
-                    r_cue?.nilIfZombie
+                    AmphoraKit.StoredAccessor.read(r_cue)
                 }
 
-                /// The objects of `r_tags`, zombies removed.
+                /// The objects of `r_tags`, zombies and filtered out objects removed.
                 public var tags: [Tag] {
-                    r_tags.removingZombies()
+                    AmphoraKit.StoredAccessor.read(r_tags)
                 }
             }
             """,
@@ -950,9 +950,9 @@ final class EntityMacroTests: XCTestCase {
                     a_mount
                 }
 
-                /// The value of `r_brand`, `nil` when it is a zombie.
+                /// The value of `r_brand`, `nil` when it is a zombie or filtered out.
                 var brand: Brand? {
-                    r_brand?.nilIfZombie
+                    AmphoraKit.StoredAccessor.read(r_brand)
                 }
             }
             """,

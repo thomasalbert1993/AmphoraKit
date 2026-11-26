@@ -65,8 +65,13 @@ enum StorageExpansion {
             write = "\(coder).encode(newValue)"
         }
         else {
+            // The filter a relationship reads through is picked by overload resolution, from
+            // the target type: the macro can't see its conformances.
             if annotation.isSorted {
-                read = "AmphoraKit.StoredAccessor.readSorted(\(storage))"
+                read = "AmphoraKit.StoredAccessor.readSorted\(annotation.isUnfiltered ? "Unfiltered" : "")(\(storage))"
+            }
+            else if annotation.isUnfiltered {
+                read = "AmphoraKit.StoredAccessor.readUnfiltered(\(storage))"
             }
             else {
                 read = annotation.defaultValue.map { "AmphoraKit.StoredAccessor.read(\(storage), default: \($0))" }

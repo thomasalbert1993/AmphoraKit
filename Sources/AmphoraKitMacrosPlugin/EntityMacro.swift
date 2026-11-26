@@ -871,12 +871,12 @@ struct EntityModel {
             defaultDoc = "/// The value of `\(property.storageName)`.\n"
         case .toOne(let target, _):
             type = "\(target)?"
-            body = "\(property.storageName)?.nilIfZombie"
-            defaultDoc = "/// The value of `\(property.storageName)`, `nil` when it is a zombie.\n"
+            body = "AmphoraKit.StoredAccessor.read(\(property.storageName))"
+            defaultDoc = "/// The value of `\(property.storageName)`, `nil` when it is a zombie or filtered out.\n"
         case .toMany(let element):
             type = "[\(element)]"
-            body = "\(property.storageName).removingZombies()"
-            defaultDoc = "/// The objects of `\(property.storageName)`, zombies removed.\n"
+            body = "AmphoraKit.StoredAccessor.read(\(property.storageName))"
+            defaultDoc = "/// The objects of `\(property.storageName)`, zombies and filtered out objects removed.\n"
         }
         let docLines = property.docCommentLines.isEmpty ? defaultDoc : doc(property.docCommentLines, indent: "")
         return DeclSyntax(stringLiteral: """

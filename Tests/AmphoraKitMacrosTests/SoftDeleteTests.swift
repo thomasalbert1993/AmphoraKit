@@ -130,4 +130,34 @@ struct SoftDeleteTests {
         #expect(lenses.compactMap(\.nilIfSoftDeleted).map(\.id) == ["lens-a", "lens-c"])
         #expect(lenses.removingSoftDeleted().map(\.id) == ["lens-a", "lens-c"])
     }
+
+    @Test("a relationship reads its target filtered — zombies, deleted and filtered out objects removed — unless unfiltered")
+    func relationships() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext.nsContext
+        let lenses = try HierarchyLens.fetch(matching: HierarchyLens.Query.all.withDeleted(), sortedBy: [.id], in: database.viewContext)
+        let brand = HierarchyBrand(context: context)
+        brand.a_id = "brand-y"
+        let unlisted = HierarchyLens(context: context)
+        unlisted.a_id = "lens-d"
+        unlisted.a_name = "unlisted"
+        for lens in lenses + [unlisted] {
+            lens.r_brand = brand
+        }
+        try context.save()
+
+        // to-many: the deleted lens-b and the unlisted lens-d are left out
+        #expect(Set(brand.lenses.map(\.id)) == ["lens-a", "lens-c"])
+        #expect(Set(StoredAccessor.readUnfiltered(brand.r_lenses).map(\.id)) == ["lens-a", "lens-b", "lens-c", "lens-d"])
+        // to-one: an unlisted brand is still read, an unlinked or deleted one isn't
+        brand.a_name = "unlisted"
+        #expect(unlisted.brand === brand)
+        brand.a_name = "unlinked"
+        #expect(unlisted.brand == nil)
+        #expect(StoredAccessor.readUnfiltered(unlisted.r_brand) === brand)
+        brand.a_name = ""
+        brand.a_deleted = true
+        #expect(unlisted.brand == nil)
+        #expect(StoredAccessor.readUnfiltered(unlisted.r_brand) === brand)
+    }
 }

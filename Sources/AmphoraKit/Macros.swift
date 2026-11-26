@@ -155,11 +155,14 @@ public macro Attribute<Stored, Coder: StorageCoder>(_ name: String? = nil, store
 /// @Relationship var cue: Cue?            // @NSManaged var r_cue: Cue?, nil when it is a zombie
 /// @Relationship var notes: [Note]        // @NSManaged var r_notes: Set<Note>, zombies removed
 /// @Relationship(.sorted) var cues: [Cue]  // sorted by Cue's Comparable conformance
+/// @Relationship(.unfiltered) var all: [Note] // the soft-deleted and filtered out notes too
 /// ```
 ///
 /// The storage name is the property name behind the `relationshipPrefix` of the enclosing
 /// `@Entity`, unless given. A to-many relationship reads in no particular order, unless
-/// declared `.sorted`.
+/// declared `.sorted`. Besides the zombies, the accessor leaves out the soft-deleted objects
+/// of a `SoftDeletable` target and the objects a `RelationshipFiltering` target filters out,
+/// unless declared `.unfiltered`.
 ///
 @attached(accessor)
 public macro Relationship(_ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "RelationshipMacro")
@@ -168,3 +171,12 @@ public macro Relationship(_ name: String? = nil, access: StoredAccess = .readonl
 /// `Comparable` conformance, a compile error when it has none. See `Relationship(_:access:)`.
 @attached(accessor)
 public macro Relationship(_ order: RelationshipOrder, _ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "RelationshipMacro")
+
+/// Declares a relationship read unfiltered: `.unfiltered` removes the zombies only. See
+/// `Relationship(_:access:)`.
+@attached(accessor)
+public macro Relationship(_ filter: RelationshipFilter, _ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "RelationshipMacro")
+
+/// Declares a to-many relationship read in order and unfiltered. See `Relationship(_:access:)`.
+@attached(accessor)
+public macro Relationship(_ order: RelationshipOrder, _ filter: RelationshipFilter, _ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "RelationshipMacro")

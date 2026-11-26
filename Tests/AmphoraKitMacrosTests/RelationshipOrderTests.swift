@@ -31,4 +31,19 @@ final class RelationshipOrderTests: XCTestCase {
         XCTAssertFalse(nameOnly.isSorted)
         XCTAssertEqual(nameOnly.explicitStorageName, "r_cues")
     }
+
+    func testUnfilteredCombinesWithTheOrderAndTheStorageName() throws {
+        let plain = try annotation("@Relationship var cues: [Cue]")
+        XCTAssertFalse(plain.isUnfiltered)
+
+        let unfiltered = try annotation("@Relationship(.unfiltered) var cue: Cue?")
+        XCTAssertTrue(unfiltered.isUnfiltered)
+        XCTAssertFalse(unfiltered.isSorted)
+
+        let all = try annotation(#"@Relationship(.sorted, .unfiltered, "r_cues", access: .readWrite) var cues: [Cue]"#)
+        XCTAssertTrue(all.isSorted)
+        XCTAssertTrue(all.isUnfiltered)
+        XCTAssertEqual(all.explicitStorageName, "r_cues")
+        XCTAssertTrue(all.isReadWrite)
+    }
 }

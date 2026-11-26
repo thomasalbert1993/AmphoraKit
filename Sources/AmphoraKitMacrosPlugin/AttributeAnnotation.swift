@@ -37,6 +37,9 @@ struct AttributeAnnotation {
     /// Whether a to-many relationship reads sorted (`.sorted`).
     let isSorted: Bool
 
+    /// Whether a relationship reads its objects with the zombies removed only (`.unfiltered`).
+    let isUnfiltered: Bool
+
     /// The documentation of the declaration.
     let docCommentLines: [String]
 
@@ -84,10 +87,12 @@ struct AttributeAnnotation {
         self.role = role
         self.domainName = pattern.identifier.text
         self.exposedType = type.trimmed
-        // The unlabeled arguments are the order (`.sorted`) and the storage name, in that order.
-        let unlabeled = [arguments.argument(labeled: nil, index: 0), arguments.argument(labeled: nil, index: 1)].compactMap { $0 }
+        // The unlabeled arguments are the order (`.sorted`), the filter (`.unfiltered`) and the
+        // storage name, in that order.
+        let unlabeled = (0..<3).compactMap { arguments.argument(labeled: nil, index: $0) }
         self.explicitStorageName = unlabeled.lazy.compactMap(\.stringLiteralValue).first
-        self.isSorted = unlabeled.contains { $0.trimmedDescription.hasSuffix("sorted") }
+        self.isSorted = unlabeled.contains { $0.trimmedDescription.hasSuffix(".sorted") }
+        self.isUnfiltered = unlabeled.contains { $0.trimmedDescription.hasSuffix(".unfiltered") }
         self.storeAs = arguments.argument(labeled: "storeAs")?.metatypeArgument
         self.defaultValue = arguments.argument(labeled: "default")?.trimmed
         self.coder = arguments.argument(labeled: "coder")?.metatypeArgument

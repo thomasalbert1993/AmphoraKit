@@ -82,11 +82,11 @@ enum HierarchySchema: DatabaseSchema {
     }
 }
 
-/// The abstract root: a non-final entity, its generated types are classes. Soft-deletable, which
-/// its sub-entities inherit.
+/// The abstract root: a non-final entity, its generated types are classes. Soft-deletable and
+/// relationship-filtering, which its sub-entities inherit.
 @objc(AmphoraKitHierarchyAsset)
 @Entity(attributePrefix: "a_", relationshipPrefix: "r_")
-class HierarchyAsset: NSManagedObject, IdentifiableDatabaseObject, SoftDeletable {
+class HierarchyAsset: NSManagedObject, IdentifiableDatabaseObject, SoftDeletable, RelationshipFiltering {
 
     typealias Schema = HierarchySchema
 
@@ -97,6 +97,12 @@ class HierarchyAsset: NSManagedObject, IdentifiableDatabaseObject, SoftDeletable
     @NSManaged var a_id: String
     @NSManaged var a_name: String
     @NSManaged var a_deleted: NSNumber?
+
+    /// An asset named `unlinked` reads `nil` through a to-one relationship.
+    var isReadThroughToOneRelationships: Bool { a_name != "unlinked" }
+
+    /// An asset named `unlisted` is left out of a to-many relationship.
+    var isReadThroughToManyRelationships: Bool { a_name != "unlisted" }
 }
 
 /// A sub-entity that has sub-entities of its own.
