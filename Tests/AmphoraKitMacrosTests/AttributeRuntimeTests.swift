@@ -173,6 +173,21 @@ struct AttributeRuntimeTests {
         #expect(Shot.AttributeAssignment.values([.memo(Shot.Memo(lines: ["c"]))])["a_memo"] as? String == "c")
     }
 
+    @Test("A value stored as a dictionary of Any reads, writes and assigns, without equality")
+    func anyStorageColumn() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let shot = Shot(context: context)
+        shot.a_id = "s"
+        #expect(shot.setup == nil)
+        shot.setup = Shot.Setup(focal: 35)
+        #expect(shot.a_framing?["focal"] as? Int == 35)
+        try context.save()
+        #expect(shot.setup == Shot.Setup(focal: 35))
+        #expect(Shot.AttributeAssignment.values([.setup(Shot.Setup(focal: 50))])["a_framing"] as? [String: Any] != nil)
+        #expect(try Shot.count(matching: .setup(.isNil), in: context) == 0)
+    }
+
     @Test("A stored-form assignment writes the value as is, one this version can't decode included")
     func storedFormAssignment() {
         #expect(Shot.AttributeAssignment.values([.kind(stored: "drone")])["a_kind"] as? String == "drone")

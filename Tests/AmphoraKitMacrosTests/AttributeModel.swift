@@ -54,6 +54,7 @@ enum AttributeSchema: DatabaseSchema {
             transformable("a_extras"),
             transformable("a_framings"),
             transformable("a_angles"),
+            transformable("a_framing"),
             shotReel
         ]
         reel.properties = [
@@ -222,6 +223,20 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// The memo, empty for an empty column, without a `default:`.
     @Attribute(access: .readWrite) var memo: Memo
+
+    /// A framing setup stored as a dictionary, the way a JSON value is.
+    struct Setup: StorageConvertible, Equatable, Sendable {
+        var focal: Int
+        init(focal: Int) { self.focal = focal }
+        init?(storage: [String: Any]) {
+            guard let focal = storage["focal"] as? Int else { return nil }
+            self.focal = focal
+        }
+        var storage: [String: Any] { ["focal": focal] }
+    }
+
+    /// The setup: a dictionary of `Any` underneath, so no equality, no sort and no field.
+    @Attribute("a_framing", storeAs: [String: Any]?.self, access: .readWrite) var setup: Setup?
 
     /// A free note.
     @Attribute(access: .readWrite) var note: String?

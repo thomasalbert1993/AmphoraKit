@@ -221,7 +221,9 @@ When attributes and relationships share their prefix, the type tells them apart:
 value, a number, an array, a dictionary or a set of standard values is an attribute; an entity or
 a set of entities is a relationship. A type holding `Any` (`[String: Any]`) can't be compared: it
 gets its `Match` member (`.isNil`), its accessor and its assignments, but no equality member, sort
-or field.
+or field. The same goes for a value stored as one, such as a JSON value
+(`@Attribute(storeAs: [String: Any]?.self) var setup: Setup?`): the macro only sees the stored
+type when `storeAs:` names it.
 
 ### Operators
 

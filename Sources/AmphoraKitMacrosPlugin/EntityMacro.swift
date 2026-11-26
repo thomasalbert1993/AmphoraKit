@@ -282,10 +282,14 @@ struct EntityModel {
                 && !instanceNames.contains(domainName)
                 && !Self.reservedInstanceNames.contains(domainName)
 
+            // A column holding `Any`, exposed or stored (a JSON value stored as a dictionary), has
+            // no equality, no sort and no field.
+            let isComparable = !storage.type.holdsAny && !(annotation?.exposedType.holdsAny ?? false)
+
             // A coded column has no static field: `Field` carries a key, not a coder.
             let generatesField = coders[storage.name] == nil
                 && storage.name != softDeletionKey
-                && !(annotation?.exposedType ?? storage.type).holdsAny
+                && isComparable
                 && !staticNames.contains(domainName)
                 && !Self.reservedStaticNames.contains(domainName)
 
@@ -298,7 +302,7 @@ struct EntityModel {
                 generatesField: generatesField,
                 storageType: storage.type.trimmedDescription,
                 coder: coders[storage.name],
-                isComparable: !(annotation?.exposedType ?? storage.type).holdsAny,
+                isComparable: isComparable,
                 isSoftDeletionMark: storage.name == softDeletionKey
             ))
         }

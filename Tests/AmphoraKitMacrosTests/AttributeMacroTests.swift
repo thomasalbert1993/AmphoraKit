@@ -277,6 +277,27 @@ final class AttributeMacroTests: XCTestCase {
         XCTAssertTrue(members.contains { $0.hasSuffix("public var stored: StoredValues {\n    StoredValues(object: self)\n}") })
     }
 
+    func testValueStoredAsAnyHasNoEqualityNoSortAndNoField() throws {
+        let source = Parser.parse(source: """
+            @Entity(attributePrefix: "a_")
+            final class Shot: NSManagedObject {
+                @Attribute(storeAs: [String: Any]?.self, access: .readWrite) var setup: Setup?
+            }
+            """)
+        let classDecl = try XCTUnwrap(source.statements.first?.item.as(ClassDeclSyntax.self))
+        let attribute = try XCTUnwrap(classDecl.attributes.first?.as(AttributeSyntax.self))
+        let members = try EntityMacro.expansion(of: attribute, providingMembersOf: classDecl, conformingTo: [], in: BasicMacroExpansionContext())
+            .map(\.trimmedDescription)
+        let code = members.joined(separator: "\n")
+
+        // Matching (`isNil`) and assigning stay; comparing a dictionary of `Any` doesn't.
+        XCTAssertTrue(code.contains("static func setup(_ match: AmphoraKit.Match<Setup?>) -> Query"))
+        XCTAssertTrue(code.contains("static func setup(_ value: Setup?) -> AttributeAssignment"))
+        XCTAssertFalse(code.contains("static func setup(_ value: Setup?) -> Query"))
+        XCTAssertFalse(code.contains("static var setup: Sort"))
+        XCTAssertFalse(code.contains("Field"))
+    }
+
     func testRelationshipNeedsAnOptionalOrAnArray() {
         assertMacroExpansion(
             """
