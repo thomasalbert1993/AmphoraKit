@@ -191,6 +191,30 @@ struct AttributeRuntimeTests {
         #expect(Shot.AttributeAssignment.values([.unit(Shot.Unit(name: "c"))])["a_unit"] as? String == "c")
     }
 
+    @Test("Collections of StorageConvertible go by storages, a type also RawRepresentable included")
+    func storageConvertibleCollections() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let shot = Shot(context: context)
+        shot.a_id = "c"
+        #expect(shot.a_units == nil && shot.units.isEmpty && shot.lengths == nil)
+
+        shot.units = [.b, Shot.Unit(name: "z")]
+        shot.lengths = [Shot.Length(bars: 4, beats: 2)]
+        try context.save()
+
+        #expect(shot.a_units == ["b", "z"])
+        #expect(shot.units.first === Shot.Unit.b && shot.units.last?.name == "z")
+        #expect(shot.a_lengths == ["4-2"])
+        #expect(shot.lengths == [Shot.Length(bars: 4, beats: 2)])
+        shot.lengths = nil
+        #expect(shot.a_lengths == nil)
+
+        let values = Shot.AttributeAssignment.values([.units([.a]), .lengths([Shot.Length(bars: 1, beats: 0)])])
+        #expect(values["a_units"] as? [String] == ["a"])
+        #expect(values["a_lengths"] as? Set<String> == ["1-0"])
+    }
+
     @Test("A value stored as a dictionary of Any reads, writes and assigns, without equality")
     func anyStorageColumn() throws {
         let database = try makeDatabase()

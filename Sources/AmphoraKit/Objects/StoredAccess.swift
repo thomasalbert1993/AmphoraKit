@@ -284,6 +284,80 @@ public enum StoredAccessor {
         Set((raws ?? []).compactMap(T.init(rawValue:)))
     }
 
+    /// An array of `StorageConvertible` stored by storages, the undecodable ones dropped.
+    @inlinable
+    public static func read<T: StorageConvertible>(_ storages: [T.Storage]) -> [T] {
+        storages.compactMap(T.decoded(from:))
+    }
+
+    /// An optional array of `StorageConvertible` stored by storages.
+    @inlinable
+    public static func read<T: StorageConvertible>(_ storages: [T.Storage]?) -> [T]? {
+        storages.map { $0.compactMap(T.decoded(from:)) }
+    }
+
+    /// An array of `StorageConvertible` over an optional column of storages, empty for `nil`.
+    @inlinable
+    public static func read<T: StorageConvertible>(_ storages: [T.Storage]?) -> [T] {
+        (storages ?? []).compactMap(T.decoded(from:))
+    }
+
+    /// A set of `StorageConvertible` stored by storages, the undecodable ones dropped.
+    @inlinable
+    public static func read<T: StorageConvertible & Hashable>(_ storages: Set<T.Storage>) -> Set<T> {
+        Set(storages.compactMap(T.decoded(from:)))
+    }
+
+    /// An optional set of `StorageConvertible` stored by storages.
+    @inlinable
+    public static func read<T: StorageConvertible & Hashable>(_ storages: Set<T.Storage>?) -> Set<T>? {
+        storages.map { Set($0.compactMap(T.decoded(from:))) }
+    }
+
+    /// A set of `StorageConvertible` over an optional column of storages, empty for `nil`.
+    @inlinable
+    public static func read<T: StorageConvertible & Hashable>(_ storages: Set<T.Storage>?) -> Set<T> {
+        Set((storages ?? []).compactMap(T.decoded(from:)))
+    }
+
+    /// An array of a type both `RawRepresentable` and `StorageConvertible`, stored by storages.
+    @inlinable
+    public static func read<T: RawRepresentable & StorageConvertible>(_ storages: [T.Storage]) -> [T] {
+        storages.compactMap(T.decoded(from:))
+    }
+
+    /// An optional array of a type both `RawRepresentable` and `StorageConvertible`.
+    @inlinable
+    public static func read<T: RawRepresentable & StorageConvertible>(_ storages: [T.Storage]?) -> [T]? {
+        storages.map { $0.compactMap(T.decoded(from:)) }
+    }
+
+    /// An array of a type both `RawRepresentable` and `StorageConvertible` over an optional
+    /// column, empty for `nil`.
+    @inlinable
+    public static func read<T: RawRepresentable & StorageConvertible>(_ storages: [T.Storage]?) -> [T] {
+        (storages ?? []).compactMap(T.decoded(from:))
+    }
+
+    /// A set of a type both `RawRepresentable` and `StorageConvertible`, stored by storages.
+    @inlinable
+    public static func read<T: RawRepresentable & StorageConvertible & Hashable>(_ storages: Set<T.Storage>) -> Set<T> {
+        Set(storages.compactMap(T.decoded(from:)))
+    }
+
+    /// An optional set of a type both `RawRepresentable` and `StorageConvertible`.
+    @inlinable
+    public static func read<T: RawRepresentable & StorageConvertible & Hashable>(_ storages: Set<T.Storage>?) -> Set<T>? {
+        storages.map { Set($0.compactMap(T.decoded(from:))) }
+    }
+
+    /// A set of a type both `RawRepresentable` and `StorageConvertible` over an optional column,
+    /// empty for `nil`.
+    @inlinable
+    public static func read<T: RawRepresentable & StorageConvertible & Hashable>(_ storages: Set<T.Storage>?) -> Set<T> {
+        Set((storages ?? []).compactMap(T.decoded(from:)))
+    }
+
     /// An integer stored in another width, `Int` over an `Int32` column. Saturates out of range.
     @inlinable
     public static func read<T: BinaryInteger, Stored: BinaryInteger>(_ stored: Stored) -> T {
@@ -405,6 +479,60 @@ public enum StoredAccessor {
     @_disfavoredOverload
     public static func write<T: RawRepresentable & Hashable>(_ values: Set<T>?) -> Set<T.RawValue>? where T.RawValue: Hashable {
         values.map { Set($0.map(\.rawValue)) }
+    }
+
+    /// An array of `StorageConvertible` written by storages.
+    @inlinable
+    public static func write<T: StorageConvertible>(_ values: [T]) -> [T.Storage] {
+        values.map(\.storage)
+    }
+
+    /// An optional array of `StorageConvertible` written by storages.
+    @inlinable
+    @_disfavoredOverload
+    public static func write<T: StorageConvertible>(_ values: [T]?) -> [T.Storage]? {
+        values.map { $0.map(\.storage) }
+    }
+
+    /// A set of `StorageConvertible` written by storages.
+    @inlinable
+    public static func write<T: StorageConvertible & Hashable>(_ values: Set<T>) -> Set<T.Storage> where T.Storage: Hashable {
+        Set(values.map(\.storage))
+    }
+
+    /// An optional set of `StorageConvertible` written by storages.
+    @inlinable
+    @_disfavoredOverload
+    public static func write<T: StorageConvertible & Hashable>(_ values: Set<T>?) -> Set<T.Storage>? where T.Storage: Hashable {
+        values.map { Set($0.map(\.storage)) }
+    }
+
+    /// An array of a type both `RawRepresentable` and `StorageConvertible`, written by storages.
+    @inlinable
+    public static func write<T: RawRepresentable & StorageConvertible>(_ values: [T]) -> [T.Storage] {
+        values.map(\.storage)
+    }
+
+    /// An optional array of a type both `RawRepresentable` and `StorageConvertible`, written by
+    /// storages.
+    @inlinable
+    @_disfavoredOverload
+    public static func write<T: RawRepresentable & StorageConvertible>(_ values: [T]?) -> [T.Storage]? {
+        values.map { $0.map(\.storage) }
+    }
+
+    /// A set of a type both `RawRepresentable` and `StorageConvertible`, written by storages.
+    @inlinable
+    public static func write<T: RawRepresentable & StorageConvertible & Hashable>(_ values: Set<T>) -> Set<T.Storage> where T.Storage: Hashable {
+        Set(values.map(\.storage))
+    }
+
+    /// An optional set of a type both `RawRepresentable` and `StorageConvertible`, written by
+    /// storages.
+    @inlinable
+    @_disfavoredOverload
+    public static func write<T: RawRepresentable & StorageConvertible & Hashable>(_ values: Set<T>?) -> Set<T.Storage>? where T.Storage: Hashable {
+        values.map { Set($0.map(\.storage)) }
     }
 
     /// An integer written in the storage width. Saturates out of range rather than trapping.

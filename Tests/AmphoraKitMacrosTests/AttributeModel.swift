@@ -57,6 +57,8 @@ enum AttributeSchema: DatabaseSchema {
             transformable("a_angles"),
             transformable("a_framing"),
             transformable("a_rig"),
+            transformable("a_units"),
+            transformable("a_lengths"),
             shotReel
         ]
         reel.properties = [
@@ -246,6 +248,12 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// The unit, any stored name decoding, without a `default:`.
     @Attribute(access: .readWrite) var unit: Unit
+
+    /// Backup units stored by their names in an optional column, empty for `nil`.
+    @Attribute(access: .readWrite) var units: [Unit]
+
+    /// Alternate lengths stored by their storage forms, not their raw values.
+    @Attribute(access: .readWrite) var lengths: Set<Length>?
 
     /// A framing setup stored as a dictionary, the way a JSON value is.
     struct Setup: StorageConvertible, Equatable, Sendable {
