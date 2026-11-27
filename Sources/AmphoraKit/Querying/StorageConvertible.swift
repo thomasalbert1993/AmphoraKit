@@ -83,6 +83,34 @@ public protocol EmptyStorageConvertible: StorageConvertible {
     init()
 }
 
+/// A `StorageConvertible` that reads any storage — an unknown value decoded as a placeholder —
+/// exposed non-optional over a non-optional column without a `default:`.
+///
+/// ```swift
+/// extension Department: InfallibleStorageConvertible {
+///     static func decoded(from storage: String) -> Department { … }   // a placeholder for an unknown key
+///     var storage: String { key }
+/// }
+///
+/// @Attribute var department: Department          // @NSManaged var a_department: String
+/// ```
+///
+/// Decoding is a static function rather than an initializer, so that a class can return a shared
+/// instance; it also provides `StorageConvertible`'s `init?(storage:)`.
+///
+public protocol InfallibleStorageConvertible: StorageConvertible {
+
+    /// Decodes a value from any stored representation.
+    static func decoded(from storage: Storage) -> Self
+}
+
+extension InfallibleStorageConvertible {
+
+    public init?(storage: Storage) {
+        self = Self.decoded(from: storage)
+    }
+}
+
 /// A `StorageConvertible` whose absence is stored as a value rather than as `nil`: an integer
 /// code with `0` for none, in a non-optional scalar column.
 ///

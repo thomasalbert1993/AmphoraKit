@@ -173,6 +173,24 @@ struct AttributeRuntimeTests {
         #expect(Shot.AttributeAssignment.values([.memo(Shot.Memo(lines: ["c"]))])["a_memo"] as? String == "c")
     }
 
+    @Test("An InfallibleStorageConvertible reads any storage, writes, matches and assigns its storage")
+    func infallibleStorageColumn() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let shot = Shot(context: context)
+        shot.a_id = "u"
+        #expect(shot.unit === Shot.Unit.a, "a listed storage reads the shared instance")
+        #expect(Shot.Unit(storage: "a") === Shot.Unit.a)
+        shot.a_unit = "z"
+        #expect(shot.unit.name == "z" && !shot.unit.isListed, "an unknown storage still decodes")
+        shot.unit = .b
+        #expect(shot.a_unit == "b")
+        try context.save()
+        #expect(Shot.Query.unit(.b).nsPredicate.predicateFormat == #"a_unit == "b""#)
+        #expect(try Shot.count(matching: .unit(.in([.b, Shot.Unit(name: "c")])), in: context) == 1)
+        #expect(Shot.AttributeAssignment.values([.unit(Shot.Unit(name: "c"))])["a_unit"] as? String == "c")
+    }
+
     @Test("A value stored as a dictionary of Any reads, writes and assigns, without equality")
     func anyStorageColumn() throws {
         let database = try makeDatabase()

@@ -48,6 +48,7 @@ enum AttributeSchema: DatabaseSchema {
             attribute("a_meter", .integer32AttributeType, defaultValue: 0),
             attribute("a_priority", .integer64AttributeType, defaultValue: 0),
             attribute("a_memo", .stringAttributeType, optional: true),
+            attribute("a_unit", .stringAttributeType, defaultValue: "a"),
             transformable("a_tags"),
             transformable("a_kinds"),
             transformable("a_labels"),
@@ -224,6 +225,27 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// The memo, empty for an empty column, without a `default:`.
     @Attribute(access: .readWrite) var memo: Memo
+
+    /// A camera unit stored by its name, a listed name read as its shared instance and an unknown
+    /// one as an unlisted unit.
+    final class Unit: InfallibleStorageConvertible, Equatable, Sendable {
+        static let a = Unit(name: "a", isListed: true)
+        static let b = Unit(name: "b", isListed: true)
+        let name: String
+        let isListed: Bool
+        init(name: String, isListed: Bool = false) {
+            self.name = name
+            self.isListed = isListed
+        }
+        static func decoded(from storage: String) -> Unit {
+            [a, b].first { $0.name == storage } ?? Unit(name: storage)
+        }
+        var storage: String { name }
+        static func == (lhs: Unit, rhs: Unit) -> Bool { lhs.name == rhs.name }
+    }
+
+    /// The unit, any stored name decoding, without a `default:`.
+    @Attribute(access: .readWrite) var unit: Unit
 
     /// A framing setup stored as a dictionary, the way a JSON value is.
     struct Setup: StorageConvertible, Equatable, Sendable {

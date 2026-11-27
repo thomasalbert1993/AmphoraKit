@@ -159,6 +159,10 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
 - A payload over an optional column, exposed non-optional, is an `EmptyStorageConvertible`: an
   `init()` for the empty value and `typealias StoredColumn = Data?` on the type, then `@Attribute
   var annotations: Annotations`. `nil` or an unreadable storage reads empty, no `default:`.
+- A value that decodes from any storage (an unknown key read as a placeholder), exposed
+  non-optional over a non-optional column, is an `InfallibleStorageConvertible`: a `static func
+  decoded(from:) -> Self`, which a class can answer with a shared instance, then `@Attribute var
+  department: Department`, no `default:`.
 - An optional property over a non-optional column whose absence is a value (an integer code, `0`
   for none) is a `NilStorageConvertible`: `static var nilStorage: Int32 { 0 }` and
   `typealias OptionalStoredColumn = Int32` on the type, then `@Attribute var signature:

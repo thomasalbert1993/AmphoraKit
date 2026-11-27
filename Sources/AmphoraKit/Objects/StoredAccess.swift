@@ -119,6 +119,12 @@ public enum StoredAccessor {
         value ?? [:]
     }
 
+    /// An `InfallibleStorageConvertible` stored by its storage, which always decodes.
+    @inlinable
+    public static func read<T: InfallibleStorageConvertible>(_ storage: T.Storage) -> T {
+        T.decoded(from: storage)
+    }
+
     /// An `EmptyStorageConvertible` over an optional storage, empty for `nil` or an unreadable one.
     @inlinable
     public static func read<T: EmptyStorageConvertible>(_ storage: T.Storage?) -> T {
