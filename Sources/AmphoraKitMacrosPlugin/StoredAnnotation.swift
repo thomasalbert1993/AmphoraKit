@@ -18,6 +18,9 @@ struct StoredAnnotation {
     /// Whether a setter is generated.
     let isReadWrite: Bool
 
+    /// Whether the column is declared `.opaque` (`@Attribute` only): no equality, sort or field.
+    let isOpaque: Bool
+
     /// The documentation of the declaration.
     let docCommentLines: [String]
 
@@ -45,12 +48,13 @@ struct StoredAnnotation {
     }
 
     /// An annotation built from an `@Attribute` / `@Relationship` declaration.
-    init(storageName: String, domainName: String, exposedType: TypeSyntax, docCommentLines: [String]) {
+    init(storageName: String, domainName: String, exposedType: TypeSyntax, isOpaque: Bool, docCommentLines: [String]) {
         self.storageName = storageName
         self.domainName = domainName
         self.exposedType = exposedType
         self.defaultValue = nil
         self.isReadWrite = false
+        self.isOpaque = isOpaque
         self.docCommentLines = docCommentLines
     }
 
@@ -72,6 +76,7 @@ struct StoredAnnotation {
         self.exposedType = type.trimmed
         self.defaultValue = arguments.argument(labeled: "default")?.trimmed
         self.isReadWrite = arguments.argument(labeled: "access")?.trimmedDescription.hasSuffix("readWrite") ?? false
+        self.isOpaque = false
         self.docCommentLines = variable.docCommentLines
     }
 }

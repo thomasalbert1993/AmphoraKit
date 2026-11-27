@@ -107,6 +107,7 @@ public macro Stored<Root, Value, Exposed>(_ keyPath: KeyPath<Root, Value>, defau
 /// @Attribute(storeAs: String?.self, default: Kind.note) var kind: Kind   // optional column, non-optional property
 /// @Attribute(storeAs: Set<String>?.self) var labels: Set<String>         // optional column, empty for nil
 /// @Attribute(access: .readWrite) var isPinned: Bool                      // with a setter
+/// @Attribute(.opaque) var version: SemanticVersion                       // no equality, sort or field
 /// ```
 ///
 /// The storage name is the property name behind the `attributePrefix` of the enclosing `@Entity`,
@@ -119,8 +120,42 @@ public macro Stored<Root, Value, Exposed>(_ keyPath: KeyPath<Root, Value>, defau
 /// encodings only — integer widths, raw values, `StorageConvertible` — so that the typed queries
 /// `@Entity` generates on the exposed type stay right; unit conversions stay hand-written.
 ///
+/// A column `@Entity` can't compare gets no equality member, sort or field: one holding `Any`, or
+/// stored as an array, a set or a dictionary — a transformable, which a fetch can't compare. The
+/// macro only sees syntax, so a type it can't see through (a `StorageConvertible` stored as a
+/// dictionary, a version stored as a string that doesn't order like it) is declared `.opaque`.
+///
 @attached(accessor)
 public macro Attribute(_ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares an attribute `@Entity` doesn't compare: no equality member, sort or field. See
+/// `Attribute(_:access:)`.
+@attached(accessor)
+public macro Attribute(_ comparability: AttributeComparability, _ name: String? = nil, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares an attribute `@Entity` doesn't compare, with a fallback. See `Attribute(_:access:)`.
+@attached(accessor)
+public macro Attribute<Exposed>(_ comparability: AttributeComparability, _ name: String? = nil, default: Exposed, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares an attribute `@Entity` doesn't compare, stored in another type. See
+/// `Attribute(_:access:)`.
+@attached(accessor)
+public macro Attribute<Stored>(_ comparability: AttributeComparability, _ name: String? = nil, storeAs: Stored.Type, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares an attribute `@Entity` doesn't compare, stored in another type, with a fallback. See
+/// `Attribute(_:access:)`.
+@attached(accessor)
+public macro Attribute<Stored, Exposed>(_ comparability: AttributeComparability, _ name: String? = nil, storeAs: Stored.Type, default: Exposed, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares an attribute encoded by a coder, which `@Entity` doesn't compare. See
+/// `Attribute(_:coder:access:)`.
+@attached(accessor)
+public macro Attribute<Coder: StorageCoder>(_ comparability: AttributeComparability, _ name: String? = nil, coder: Coder.Type, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro")
+
+/// Declares an attribute encoded by a coder, its column type spelled out, which `@Entity` doesn't
+/// compare. See `Attribute(_:coder:access:)`.
+@attached(accessor)
+public macro Attribute<Stored, Coder: StorageCoder>(_ comparability: AttributeComparability, _ name: String? = nil, storeAs: Stored.Type, coder: Coder.Type, access: StoredAccess = .readonly) = #externalMacro(module: "AmphoraKitMacrosPlugin", type: "AttributeMacro") where Coder.Stored == Stored
 
 /// Declares an attribute with a fallback when the stored value doesn't decode, its column type
 /// inferred. See `Attribute(_:access:)`.

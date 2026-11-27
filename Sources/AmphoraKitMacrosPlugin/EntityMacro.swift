@@ -230,7 +230,7 @@ struct EntityModel {
                 coders[name] = coder.trimmedDescription
             }
             storages.append((name, type, annotation.exposedType, annotation.docCommentLines, annotation.role))
-            annotations[name] = StoredAnnotation(storageName: name, domainName: annotation.domainName, exposedType: annotation.exposedType, docCommentLines: annotation.docCommentLines)
+            annotations[name] = StoredAnnotation(storageName: name, domainName: annotation.domainName, exposedType: annotation.exposedType, isOpaque: annotation.isOpaque, docCommentLines: annotation.docCommentLines)
         }
 
         // One prefix for both kinds (`cd_`): the type tells them apart, a value type being an
@@ -294,9 +294,19 @@ struct EntityModel {
                 && !instanceNames.contains(domainName)
                 && !Self.reservedInstanceNames.contains(domainName)
 
-            // A column holding `Any`, exposed or stored (a JSON value stored as a dictionary), has
-            // no equality, no sort and no field.
-            let isComparable = !storage.type.holdsAny && !(annotation?.exposedType.holdsAny ?? false)
+            // A column holding `Any`, exposed or stored (a JSON value stored as a dictionary), an
+            // attribute stored as a collection (a transformable, which a fetch can't compare) and
+            // one declared `.opaque` have no equality, no sort and no field.
+            let isTransformable: Bool
+            if case .attribute = kind {
+                isTransformable = (storage.type.optionalWrappedType ?? storage.type).isCollection
+            } else {
+                isTransformable = false
+            }
+            let isComparable = !storage.type.holdsAny
+                && !(annotation?.exposedType.holdsAny ?? false)
+                && !isTransformable
+                && !(annotation?.isOpaque ?? false)
 
             // A coded column has no static field: `Field` carries a key, not a coder.
             let generatesField = coders[storage.name] == nil

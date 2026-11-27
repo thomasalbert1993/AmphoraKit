@@ -40,6 +40,9 @@ struct AttributeAnnotation {
     /// Whether a relationship reads its objects with the zombies removed only (`.unfiltered`).
     let isUnfiltered: Bool
 
+    /// Whether an attribute is declared `.opaque`: `@Entity` gives it no equality, sort or field.
+    let isOpaque: Bool
+
     /// The documentation of the declaration.
     let docCommentLines: [String]
 
@@ -88,11 +91,13 @@ struct AttributeAnnotation {
         self.domainName = pattern.identifier.text
         self.exposedType = type.trimmed
         // The unlabeled arguments are the order (`.sorted`), the filter (`.unfiltered`) and the
-        // storage name, in that order.
+        // storage name of a relationship, the comparability (`.opaque`) and the storage name of an
+        // attribute, in that order.
         let unlabeled = (0..<3).compactMap { arguments.argument(labeled: nil, index: $0) }
         self.explicitStorageName = unlabeled.lazy.compactMap(\.stringLiteralValue).first
         self.isSorted = unlabeled.contains { $0.trimmedDescription.hasSuffix(".sorted") }
         self.isUnfiltered = unlabeled.contains { $0.trimmedDescription.hasSuffix(".unfiltered") }
+        self.isOpaque = unlabeled.contains { $0.trimmedDescription.hasSuffix(".opaque") }
         self.storeAs = arguments.argument(labeled: "storeAs")?.metatypeArgument
         self.defaultValue = arguments.argument(labeled: "default")?.trimmed
         self.coder = arguments.argument(labeled: "coder")?.metatypeArgument

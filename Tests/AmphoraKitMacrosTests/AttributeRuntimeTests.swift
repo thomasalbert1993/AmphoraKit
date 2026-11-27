@@ -188,6 +188,22 @@ struct AttributeRuntimeTests {
         #expect(try Shot.count(matching: .setup(.isNil), in: context) == 0)
     }
 
+    @Test("An opaque column reads, writes, assigns and matches nil, its type needing no equality")
+    func opaqueColumn() throws {
+        let database = try makeDatabase()
+        let context = database.viewContext
+        let shot = Shot(context: context)
+        shot.a_id = "s"
+        #expect(shot.rig == nil)
+        #expect(try Shot.count(matching: .rig(.isNil), in: context) == 1)
+        shot.rig = Shot.Rig(head: "fluid")
+        #expect(shot.a_rig?["head"] as? String == "fluid")
+        try context.save()
+        #expect(shot.rig?.head == "fluid")
+        #expect(Shot.AttributeAssignment.values([.rig(Shot.Rig(head: "geared"))])["a_rig"] as? [String: Any] != nil)
+        #expect(try Shot.count(matching: .rig(.isNil), in: context) == 0)
+    }
+
     @Test("A stored-form assignment writes the value as is, one this version can't decode included")
     func storedFormAssignment() {
         #expect(Shot.AttributeAssignment.values([.kind(stored: "drone")])["a_kind"] as? String == "drone")

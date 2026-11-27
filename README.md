@@ -177,6 +177,13 @@ final class Note: NSManagedObject, IdentifiableDatabaseObject {
   `Stored`.
   Its accessor, queries and assignments go through the coder — an empty chain can be stored as
   `nil` — and it gets no sort and no static field, which would order or compare its encoding.
+- A column the store can't compare gets no equality member, sort or field — only its `Match`
+  member (`.isNil`), its accessor and its assignments: one holding `Any` (`[String: Any]`), and
+  one stored as an array, a set or a dictionary, a transformable a fetch can't compare. A type
+  the macro can't see through is declared `.opaque`: `@Attribute(.opaque) var setup: Setup?`
+  for a `StorageConvertible` stored as a dictionary, which then needs no `Equatable`, or
+  `@Attribute(.opaque, "a_build") var version: Version` for a string that doesn't order like the
+  value.
 
 `@Entity` then generates, from these declarations:
 
@@ -219,11 +226,7 @@ Without the macros, write `Query` and `Sort` by hand: a struct conforming to `Da
 
 When attributes and relationships share their prefix, the type tells them apart: a standard
 value, a number, an array, a dictionary or a set of standard values is an attribute; an entity or
-a set of entities is a relationship. A type holding `Any` (`[String: Any]`) can't be compared: it
-gets its `Match` member (`.isNil`), its accessor and its assignments, but no equality member, sort
-or field. The same goes for a value stored as one, such as a JSON value
-(`@Attribute(storeAs: [String: Any]?.self) var setup: Setup?`): the macro only sees the stored
-type when `storeAs:` names it.
+a set of entities is a relationship.
 
 ### Operators
 

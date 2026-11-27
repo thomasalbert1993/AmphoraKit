@@ -55,6 +55,7 @@ enum AttributeSchema: DatabaseSchema {
             transformable("a_framings"),
             transformable("a_angles"),
             transformable("a_framing"),
+            transformable("a_rig"),
             shotReel
         ]
         reel.properties = [
@@ -237,6 +238,20 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
 
     /// The setup: a dictionary of `Any` underneath, so no equality, no sort and no field.
     @Attribute("a_framing", storeAs: [String: Any]?.self, access: .readWrite) var setup: Setup?
+
+    /// A camera rig stored as a dictionary, with no equality of its own.
+    struct Rig: StorageConvertible, Sendable {
+        var head: String
+        init(head: String) { self.head = head }
+        init?(storage: [String: Any]) {
+            guard let head = storage["head"] as? String else { return nil }
+            self.head = head
+        }
+        var storage: [String: Any] { ["head": head] }
+    }
+
+    /// The rig: declared `.opaque`, its column type inferred, and `Rig` needs no `Equatable`.
+    @Attribute(.opaque, "a_rig", access: .readWrite) var rig: Rig?
 
     /// A free note.
     @Attribute(access: .readWrite) var note: String?

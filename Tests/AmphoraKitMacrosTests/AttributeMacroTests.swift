@@ -298,6 +298,63 @@ final class AttributeMacroTests: XCTestCase {
         XCTAssertFalse(code.contains("Field"))
     }
 
+    func testOpaqueAttributeHasNoEqualityNoSortAndNoField() throws {
+        let source = Parser.parse(source: """
+            @Entity(attributePrefix: "a_")
+            final class Shot: NSManagedObject {
+                @Attribute(.opaque, access: .readWrite) var setup: Setup?
+                @Attribute(.opaque, "a_build") var version: Version
+                @Attribute var note: String
+            }
+            """)
+        let classDecl = try XCTUnwrap(source.statements.first?.item.as(ClassDeclSyntax.self))
+        let attribute = try XCTUnwrap(classDecl.attributes.first?.as(AttributeSyntax.self))
+        let members = try EntityMacro.expansion(of: attribute, providingMembersOf: classDecl, conformingTo: [], in: BasicMacroExpansionContext())
+            .map(\.trimmedDescription)
+        let code = members.joined(separator: "\n")
+
+        // The column type stays inferred, and the storage name follows `.opaque`.
+        XCTAssertTrue(code.contains("@NSManaged var a_setup: Setup.OptionalStoredColumn"))
+        XCTAssertTrue(code.contains("@NSManaged var a_build: Version.StoredColumn"))
+        // Matching (`isNil`) and assigning stay; comparing doesn't.
+        XCTAssertTrue(code.contains("static func setup(_ match: AmphoraKit.Match<Setup?>) -> Query"))
+        XCTAssertTrue(code.contains("static func setup(_ value: Setup?) -> AttributeAssignment"))
+        XCTAssertFalse(code.contains("static func setup(_ value: Setup?) -> Query"))
+        XCTAssertFalse(code.contains("static func version(_ value: Version) -> Query"))
+        XCTAssertFalse(code.contains("static var setup: Sort"))
+        XCTAssertFalse(code.contains("static var version: Sort"))
+        XCTAssertFalse(code.contains("Field<Shot, Setup?>"))
+        XCTAssertFalse(code.contains("Field<Shot, Version>"))
+        // A column next to them keeps its comparisons.
+        XCTAssertTrue(code.contains("static func note(_ value: String) -> Query"))
+        XCTAssertTrue(code.contains("static var note: Sort"))
+        XCTAssertTrue(code.contains("Field<Shot, String>"))
+    }
+
+    func testCollectionAttributeIsOpaque() throws {
+        let source = Parser.parse(source: """
+            @Entity(attributePrefix: "a_")
+            final class Shot: NSManagedObject {
+                @Attribute var tags: [String]
+                @Attribute(storeAs: Set<String>?.self) var labels: Set<String>
+            }
+            """)
+        let classDecl = try XCTUnwrap(source.statements.first?.item.as(ClassDeclSyntax.self))
+        let attribute = try XCTUnwrap(classDecl.attributes.first?.as(AttributeSyntax.self))
+        let members = try EntityMacro.expansion(of: attribute, providingMembersOf: classDecl, conformingTo: [], in: BasicMacroExpansionContext())
+            .map(\.trimmedDescription)
+        let code = members.joined(separator: "\n")
+
+        // A transformable a fetch can't compare: matching and assigning only.
+        XCTAssertTrue(code.contains("static func tags(_ match: AmphoraKit.Match<[String]>) -> Query"))
+        XCTAssertTrue(code.contains("static func labels(_ match: AmphoraKit.Match<Set<String>>) -> Query"))
+        XCTAssertFalse(code.contains("static func tags(_ value: [String]) -> Query"))
+        XCTAssertFalse(code.contains("static func labels(_ value: Set<String>) -> Query"))
+        XCTAssertFalse(code.contains("static var tags: Sort"))
+        XCTAssertFalse(code.contains("static var labels: Sort"))
+        XCTAssertFalse(code.contains("Field"))
+    }
+
     func testRelationshipNeedsAnOptionalOrAnArray() {
         assertMacroExpansion(
             """
