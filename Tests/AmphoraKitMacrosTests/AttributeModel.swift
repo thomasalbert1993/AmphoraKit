@@ -156,10 +156,10 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
             self.init(bars: parts[0], beats: parts[1])
         }
         var storage: String { "\(bars)-\(beats)" }
-        init?(storage: String) {
+        static func decoded(from storage: String) -> Length? {
             let parts = storage.components(separatedBy: "-").compactMap(Int.init)
             guard parts.count == 2 else { return nil }
-            self.init(bars: parts[0], beats: parts[1])
+            return Length(bars: parts[0], beats: parts[1])
         }
     }
 
@@ -192,11 +192,11 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
         case common, waltz
         static var nilStorage: Int32 { 0 }
         typealias OptionalStoredColumn = Int32
-        init?(storage: Int32) {
+        static func decoded(from storage: Int32) -> Meter? {
             switch storage {
-                case 1: self = .common
-                case 2: self = .waltz
-                default: return nil
+                case 1: .common
+                case 2: .waltz
+                default: nil
             }
         }
         var storage: Int32 { self == .common ? 1 : 2 }
@@ -219,7 +219,7 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
         var lines: [String]
         init() { lines = [] }
         init(lines: [String]) { self.lines = lines }
-        init?(storage: String) { lines = storage.isEmpty ? [] : storage.components(separatedBy: "|") }
+        static func decoded(from storage: String) -> Memo? { Memo(lines: storage.isEmpty ? [] : storage.components(separatedBy: "|")) }
         var storage: String { lines.joined(separator: "|") }
     }
 
@@ -251,9 +251,8 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
     struct Setup: StorageConvertible, Equatable, Sendable {
         var focal: Int
         init(focal: Int) { self.focal = focal }
-        init?(storage: [String: Any]) {
-            guard let focal = storage["focal"] as? Int else { return nil }
-            self.focal = focal
+        static func decoded(from storage: [String: Any]) -> Setup? {
+            (storage["focal"] as? Int).map(Setup.init(focal:))
         }
         var storage: [String: Any] { ["focal": focal] }
     }
@@ -265,9 +264,8 @@ final class Shot: NSManagedObject, IdentifiableDatabaseObject {
     struct Rig: StorageConvertible, Sendable {
         var head: String
         init(head: String) { self.head = head }
-        init?(storage: [String: Any]) {
-            guard let head = storage["head"] as? String else { return nil }
-            self.head = head
+        static func decoded(from storage: [String: Any]) -> Rig? {
+            (storage["head"] as? String).map(Rig.init(head:))
         }
         var storage: [String: Any] { ["head": head] }
     }

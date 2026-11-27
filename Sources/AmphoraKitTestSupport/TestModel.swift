@@ -127,7 +127,7 @@ public final class TestItem: NSManagedObject, IdentifiableDatabaseObject {
 
     /// A position encoded as text, decoded from `positionRaw`.
     public var position: Position? {
-        get { positionRaw.flatMap(Position.fromStorage) }
+        get { positionRaw.flatMap(Position.decoded(from:)) }
         set { positionRaw = newValue?.storage }
     }
 
@@ -190,10 +190,10 @@ extension TestItem {
 
         public var storage: String { "\(bar)-\(beat)" }
 
-        public init?(storage: String) {
+        public static func decoded(from storage: String) -> Position? {
             let parts = storage.split(separator: "-").compactMap { Int($0) }
             guard parts.count == 2 else { return nil }
-            self.init(bar: parts[0], beat: parts[1])
+            return Position(bar: parts[0], beat: parts[1])
         }
     }
 }

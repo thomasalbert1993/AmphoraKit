@@ -80,25 +80,25 @@ public enum StoredAccessor {
     /// A `StorageConvertible` stored by its storage.
     @inlinable
     public static func read<T: StorageConvertible>(_ storage: T.Storage) -> T? {
-        T(storage: storage)
+        T.decoded(from: storage)
     }
 
     /// A `StorageConvertible` stored by its storage, with a fallback.
     @inlinable
     public static func read<T: StorageConvertible>(_ storage: T.Storage, default fallback: T) -> T {
-        T(storage: storage) ?? fallback
+        T.decoded(from: storage) ?? fallback
     }
 
     /// A `StorageConvertible` stored by an optional storage.
     @inlinable
     public static func read<T: StorageConvertible>(_ storage: T.Storage?) -> T? {
-        storage.flatMap(T.init(storage:))
+        storage.flatMap(T.decoded(from:))
     }
 
     /// A `StorageConvertible` stored by an optional storage, with a fallback.
     @inlinable
     public static func read<T: StorageConvertible>(_ storage: T.Storage?, default fallback: T) -> T {
-        storage.flatMap(T.init(storage:)) ?? fallback
+        storage.flatMap(T.decoded(from:)) ?? fallback
     }
 
     /// Any value with a fallback for `nil`.
@@ -128,7 +128,7 @@ public enum StoredAccessor {
     /// An `EmptyStorageConvertible` over an optional storage, empty for `nil` or an unreadable one.
     @inlinable
     public static func read<T: EmptyStorageConvertible>(_ storage: T.Storage?) -> T {
-        storage.flatMap(T.init(storage:)) ?? T()
+        storage.flatMap(T.decoded(from:)) ?? T()
     }
 
     /// A to-one relationship, `nil` when the object is a zombie.
@@ -233,19 +233,19 @@ public enum StoredAccessor {
     /// value is its display form.
     @inlinable
     public static func read<T: RawRepresentable & StorageConvertible>(_ storage: T.Storage) -> T? {
-        T(storage: storage)
+        T.decoded(from: storage)
     }
 
     /// A type both `RawRepresentable` and `StorageConvertible`, stored by an optional storage.
     @inlinable
     public static func read<T: RawRepresentable & StorageConvertible>(_ storage: T.Storage?) -> T? {
-        storage.flatMap(T.init(storage:))
+        storage.flatMap(T.decoded(from:))
     }
 
     /// A type both `RawRepresentable` and `StorageConvertible`, with a fallback.
     @inlinable
     public static func read<T: RawRepresentable & StorageConvertible>(_ storage: T.Storage?, default fallback: T) -> T {
-        storage.flatMap(T.init(storage:)) ?? fallback
+        storage.flatMap(T.decoded(from:)) ?? fallback
     }
 
     /// An array of `RawRepresentable` stored by raw values, the undecodable ones dropped.

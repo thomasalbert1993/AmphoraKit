@@ -9,12 +9,14 @@ import Foundation
 /// ```swift
 /// struct BarBeatPosition: StorageConvertible {
 ///     var storage: String { "\(bar)-\(beat)" }
-///     init?(storage: String) { … }
+///     static func decoded(from storage: String) -> BarBeatPosition? { … }
 /// }
 /// ```
 ///
-/// Both kinds are read back with `fromStorage(_:)` and compared in predicates through their
-/// storage value.
+/// Decoding is a static function rather than an initializer, so that a class can return a shared
+/// instance; it provides `init?(storage:)`. A `StorageConvertible` is read back with
+/// `decoded(from:)`, a `RawRepresentable` with `fromStorage(_:)`, and both are compared in
+/// predicates through their storage value.
 ///
 public protocol StorageConvertible {
 
@@ -22,7 +24,7 @@ public protocol StorageConvertible {
     associatedtype Storage
 
     /// Decodes a value from its stored representation, `nil` when it doesn't parse.
-    init?(storage: Storage)
+    static func decoded(from storage: Storage) -> Self?
 
     /// The stored representation of the value.
     var storage: Storage { get }
@@ -37,9 +39,12 @@ extension StorageConvertible {
     /// storage. A `NilStorageConvertible` declares its own, the non-optional storage.
     public typealias OptionalStoredColumn = Storage?
 
-    /// Decodes a value from its stored representation.
-    public static func fromStorage(_ storage: Storage) -> Self? {
-        Self(storage: storage)
+    /// Decodes a value from its stored representation, `nil` when it doesn't parse.
+    public init?(storage: Storage) {
+        guard let value = Self.decoded(from: storage) else {
+            return nil
+        }
+        self = value
     }
 }
 
@@ -67,7 +72,7 @@ extension RawRepresentable {
 /// extension Annotations: EmptyStorageConvertible {
 ///     typealias StoredColumn = Data?            // the column is optional
 ///     init() { … }                              // the empty payload
-///     init?(storage: Data) { … }
+///     static func decoded(from storage: Data) -> Annotations? { … }
 ///     var storage: Data { … }
 /// }
 ///
@@ -95,8 +100,7 @@ public protocol EmptyStorageConvertible: StorageConvertible {
 /// @Attribute var department: Department          // @NSManaged var a_department: String
 /// ```
 ///
-/// Decoding is a static function rather than an initializer, so that a class can return a shared
-/// instance; it also provides `StorageConvertible`'s `init?(storage:)`.
+/// Its non-optional `decoded(from:)` provides `StorageConvertible`'s optional one.
 ///
 public protocol InfallibleStorageConvertible: StorageConvertible {
 
@@ -106,8 +110,8 @@ public protocol InfallibleStorageConvertible: StorageConvertible {
 
 extension InfallibleStorageConvertible {
 
-    public init?(storage: Storage) {
-        self = Self.decoded(from: storage)
+    public static func decoded(from storage: Storage) -> Self? {
+        decoded(from: storage) as Self
     }
 }
 
